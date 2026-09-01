@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ore Straordinarie</title>
+
+<!-- Tag per iOS App / PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ore Lavoro">
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --green: #16a34a;
+    --red: #dc2626;
+    --orange: #ea580c;
+    --blue: #2563eb;
+}
+
+body.dark {
+    --bg: #111827;
+    --card: #1f2937;
+    --text: #f9fafb;
+    --muted: #9ca3af;
+    --border: #374151;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: .2s;
+    padding-bottom: 30px;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 16px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    margin-top: 10px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+h2 {
+    margin-top: 0;
+    font-size: 18px;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.03);
+}
+
+button {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: .15s;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.clock {
+    text-align: center;
+    font-size: 42px;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.date {
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 15px;
+    text-transform: capitalize;
+    font-size: 14px;
+}
+
+.status {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.status.work { color: var(--green); }
+.status.pause { color: var(--orange); }
+.status.off { color: var(--muted); }
+
+.main-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.btn-entry { background: var(--green); color: white; padding: 16px; font-size: 18px; }
+.btn-pause { background: var(--orange); color: white; padding: 16px; font-size: 18px; }
+.btn-resume { background: var(--blue); color: white; padding: 16px; font-size: 18px; }
+.btn-exit { background: var(--red); color: white; padding: 16px; font-size: 18px; }
+
+.time-correction {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 15px;
+}
+
+.time-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+}
+
+.time-label {
+    width: 100%;
+    text-align: center;
+    color: var(--muted);
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.time-value {
+    min-width: 60px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.adjust-btn {
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.minus { background: #ef4444; color: white; }
+.plus { background: var(--green); color: white; }
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.stat {
+    text-align: center;
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.stat-label {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.overtime { color: var(--green); }
+.negative { color: var(--red); }
+
+.settings {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+input {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+    width: 70px;
+    text-align: center;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.history-actions { display: flex; gap: 6px; }
+.secondary { background: var(--blue); color: white; font-size: 13px; padding: 8px 12px; }
+.danger { background: var(--red); color: white; font-size: 13px; padding: 8px 12px; }
+
+.history-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+}
+.history-item:last-child { border-bottom: none; }
+
+.history-top {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.history-row-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    background: rgba(0,0,0,0.02);
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.history-date { font-weight: bold; font-size: 15px; }
+.small { color: var(--muted); font-size: 11px; }
+
+.delete-btn {
+    background: transparent;
+    color: var(--red);
+    padding: 4px 8px;
+    font-size: 16px;
+}
+
+.pause-list { margin-top: 10px; }
+.pause-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-top: 1px dashed var(--border);
+    font-size: 13px;
+}
+
+.empty { text-align: center; color: var(--muted); padding: 20px; }
+
+@media (min-width: 600px) {
+    .stats { grid-template-columns: repeat(4, 1fr); }
+    .time-label { width: auto; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+    <h1>⏱️ Ore Straordinarie</h1>
+    <button onclick="toggleTheme()">🌙</button>
+</header>
+
+<!-- OROLOGIO -->
+<div class="card">
+    <div id="clock" class="clock">00:00:00</div>
+    <div id="date" class="date"></div>
+    <div id="status" class="status off">⚪ Non sei al lavoro</div>
+
+    <div class="main-buttons">
+        <button id="entryBtn" class="btn-entry" onclick="registerEntry()">🟢 ENTRATA</button>
+        <button id="pauseBtn" class="btn-pause" onclick="togglePause()">⏸️ PAUSA</button>
+        <button id="resumeBtn" class="btn-resume" onclick="togglePause()">▶️ RIPRENDI</button>
+        <button id="exitBtn" class="btn-exit" onclick="registerExit()">🔴 USCITA</button>
+    </div>
+
+    <!-- CORREZIONI -->
+    <div id="liveCorrection" class="time-correction" style="display:none">
+        <h3 style="text-align:center; font-size:15px; margin:0 0 10px 0;">🛠️ Correggi orari di oggi</h3>
+        <div id="liveTimes"></div>
+    </div>
+</div>
+
+<!-- STATISTICHE -->
+<div class="card">
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Lavorate oggi</div>
+            <div id="todayWorked" class="stat-value">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Pausa oggi</div>
+            <div id="todayPause" class="stat-value">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Straordinario oggi</div>
+            <div id="todayOvertime" class="stat-value overtime">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Totale straordinari</div>
+            <div id="totalOvertime" class="stat-value overtime">0h 00m</div>
+        </div>
+    </div>
+</div>
+
+<!-- IMPOSTAZIONI -->
+<div class="card">
+    <h2>⚙️ Impostazioni</h2>
+    <div class="settings">
+        <label style="font-size:14px;">Ore normali Lun–Ven:</label>
+        <input id="normalHours" type="number" min="0" max="24" step="0.25" value="8" onchange="saveSettings()">
+    </div>
+</div>
+
+<!-- STORICO -->
+<div class="card">
+    <div class="history-header">
+        <h2>📅 Storico</h2>
+        <div class="history-actions">
+            <button class="secondary" onclick="exportCSV()">📊 Esporta CSV</button>
+            <button class="danger" onclick="clearHistory()">🗑️</button>
+        </div>
+    </div>
+    <div id="history"></div>
+</div>
+
+</div>
+
+<script>
+let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
+let settings = JSON.parse(localStorage.getItem("workSettings") || "{}");
+let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
+
+if (settings.normalHours !== undefined) {
+    document.getElementById("normalHours").value = settings.normalHours;
+}
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function formatTime(d) { return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function formatDuration(m) {
+    m = Math.max(0, Math.round(m));
+    return Math.floor(m / 60) + "h " + pad(m % 60) + "m";
+}
+function formatSignedDuration(m) {
+    m = Math.round(m);
+    if (m > 0) return "+" + formatDuration(m);
+    if (m < 0) return "-" + formatDuration(Math.abs(m));
+    return "0h 00m";
+}
+function getDateISO(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function isWeekend(d) { const day = d.getDay(); return (day === 0 || day === 6); }
+function getNormalMinutes() {
+    return Math.round((parseFloat(document.getElementById("normalHours").value) || 8) * 60);
+}
+
+function saveData() {
+    localStorage.setItem("workRecords", JSON.stringify(records));
+    localStorage.setItem("workSettings", JSON.stringify(settings));
+    if (currentDay) localStorage.setItem("currentDay", JSON.stringify(currentDay));
+    else localStorage.removeItem("currentDay");
+}
+
+function registerEntry() {
+    if (currentDay) return alert("Hai già una giornata aperta.");
+    currentDay = { entry: new Date().toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    saveData();
+    updateUI();
+}
+
+function togglePause() {
+    if (!currentDay) return alert("Prima devi registrare l'entrata.");
+    const now = new Date().toISOString();
+    if (!currentDay.paused) {
+        currentDay.paused = true;
+        currentDay.pauses.push({ start: now, end: null });
+    } else {
+        currentDay.paused = false;
+        const last = currentDay.pauses[currentDay.pauses.length - 1];
+        if (last) last.end = now;
+    }
+    saveData();
+    updateUI();
+}
+
+function registerExit() {
+    if (!currentDay) return alert("Non hai registrato l'entrata.");
+    if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
+    
+    currentDay.exit = new Date().toISOString();
+    currentDay.isClosed = true;
+
+    const entryDate = new Date(currentDay.entry);
+    records.unshift({
+        id: Date.now(),
+        date: getDateISO(entryDate),
+        dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+        entry: currentDay.entry,
+        exit: currentDay.exit,
+        workedMinutes: calculateWorkedMinutes(currentDay),
+        pauseMinutes: calculatePauseMinutes(currentDay),
+        overtimeMinutes: calculateOvertime(currentDay),
+        pauses: currentDay.pauses
+    });
+
+    currentDay = null;
+    saveData();
+    renderHistory();
+    updateUI();
+}
+
+function calculateWorkedMinutes(day) {
+    if (!day || !day.entry) return 0;
+    const start = new Date(day.entry);
+    const end = day.isClosed ? new Date(day.exit) : new Date();
+    let total = 0, workStart = start;
+
+    for (const p of day.pauses) {
+        total += Math.max(0, (new Date(p.start) - workStart) / 60000);
+        if (p.end) workStart = new Date(p.end);
+        else return Math.round(total);
+    }
+    total += Math.max(0, (end - workStart) / 60000);
+    return Math.round(total);
+}
+
+function calculatePauseMinutes(day) {
+    if (!day) return 0;
+    let total = 0;
+    for (const p of day.pauses) {
+        if (!p.start) continue;
+        const end = p.end ? new Date(p.end) : new Date();
+        total += Math.max(0, (end - new Date(p.start)) / 60000);
+    }
+    return Math.round(total);
+}
+
+function calculateOvertime(day) {
+    if (!day) return 0;
+    const worked = calculateWorkedMinutes(day);
+    if (isWeekend(new Date(day.entry))) return worked;
+    return Math.max(0, worked - getNormalMinutes());
+}
+
+function adjustTime(type, index, amount) {
+    if (!currentDay) return;
+    let date;
+    if (type === "entry") {
+        date = new Date(currentDay.entry);
+        date.setMinutes(date.getMinutes() + amount);
+        currentDay.entry = date.toISOString();
+    } else if (type === "pauseStart") {
+        date = new Date(currentDay.pauses[index].start);
+        date.setMinutes(date.getMinutes() + amount);
+        currentDay.pauses[index].start = date.toISOString();
+    } else if (type === "pauseEnd") {
+        date = new Date(currentDay.pauses[index].end);
+        date.setMinutes(date.getMinutes() + amount);
+        currentDay.pauses[index].end = date.toISOString();
+    }
+    saveData();
+    updateUI();
+}
+
+function adjustRecordTime(id, type, index, amount) {
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+
+    let targetIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
+    let d = new Date(targetIso);
+    d.setMinutes(d.getMinutes() + amount);
+
+    if (type === "entry") record.entry = d.toISOString();
+    else if (type === "exit") record.exit = d.toISOString();
+    else if (type === "pauseStart") record.pauses[index].start = d.toISOString();
+    else if (type === "pauseEnd") record.pauses[index].end = d.toISOString();
+
+    const tempDay = { entry: record.entry, exit: record.exit, pauses: record.pauses, paused: false, isClosed: true };
+    record.workedMinutes = calculateWorkedMinutes(tempDay);
+    record.pauseMinutes = calculatePauseMinutes(tempDay);
+    record.overtimeMinutes = calculateOvertime(tempDay);
+
+    const entryDate = new Date(record.entry);
+    record.date = getDateISO(entryDate);
+    record.dayName = entryDate.toLocaleDateString("it-IT", { weekday: "long" });
+
+    saveData();
+    renderHistory();
+    updateUI();
+}
+
+function renderLiveCorrection() {
+    const box = document.getElementById("liveCorrection");
+    const times = document.getElementById("liveTimes");
+    if (!currentDay) { box.style.display = "none"; return; }
+    box.style.display = "block";
+
+    let html = timeControl("Entrata", new Date(currentDay.entry), "entry", null);
+    currentDay.pauses.forEach((p, idx) => {
+        html += timeControl("Pausa " + (idx + 1) + " inizio", new Date(p.start), "pauseStart", idx);
+        if (p.end) html += timeControl("Pausa " + (idx + 1) + " fine", new Date(p.end), "pauseEnd", idx);
+    });
+    times.innerHTML = html;
+}
+
+function timeControl(label, date, type, index) {
+    const idx = index === null ? "null" : index;
+    return `
+        <div class="time-row">
+            <div class="time-label">${label}</div>
+            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -15)">-15m</button>
+            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -5)">-5m</button>
+            <div class="time-value">${formatTime(date)}</div>
+            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 5)">+5m</button>
+            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 15)">+15m</button>
+        </div>
+    `;
+}
+
+function renderHistory() {
+    const container = document.getElementById("history");
+    if (records.length === 0) {
+        container.innerHTML = `<div class="empty">Nessuna giornata registrata.</div>`;
+        return;
+    }
+
+    container.innerHTML = records.map(r => {
+        const overtimeClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
+        let pausesHTML = "";
+        r.pauses.forEach((p, idx) => {
+            pausesHTML += `
+                <div class="pause-item">
+                    <span>Pausa ${idx + 1}:</span>
+                    ${historyTimeControl(r, "pauseStart", idx, p.start)}
+                    <span>→</span>
+                    ${p.end ? historyTimeControl(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
+                </div>
+            `;
+        });
+
+        return `
+            <div class="history-item">
+                <div class="history-top">
+                    <div class="history-row-main">
+                        <div>
+                            <span class="history-date">${r.dayName}</span>
+                            <span class="small">(${formatItalianDate(r.date)})</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button>
+                    </div>
+                    <div class="history-details">
+                        <div><div class="small">Entrata</div>${historyTimeControl(r, "entry", null, r.entry)}</div>
+                        <div><div class="small">Uscita</div>${historyTimeControl(r, "exit", null, r.exit)}</div>
+                        <div><div class="small">Straordinario</div><strong class="${overtimeClass}">${formatSignedDuration(r.overtimeMinutes)}</strong></div>
+                    </div>
+                </div>
+                ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
+            </div>
+        `;
+    }).join("");
+}
+
+function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
+
+function historyTimeControl(record, type, index, iso) {
+    const date = new Date(iso);
+    const idx = index === null ? "null" : index;
+    return `
+        <span style="display:inline-flex; align-items:center; gap:2px;">
+            <button class="adjust-btn minus" style="padding:2px 4px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -5)">-5</button>
+            <strong style="font-size:13px; margin:0 2px;">${formatTime(date)}</strong>
+            <button class="adjust-btn plus" style="padding:2px 4px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 5)">+5</button>
+        </span>
+    `;
+}
+
+function exportCSV() {
+    if (records.length === 0) return alert("Non ci sono dati da esportare.");
+    let csv = "Data;Giorno;Entrata;Uscita;Pausa Totale (min);Ore Lavorate;Straordinario\n";
+    records.forEach(r => {
+        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(new Date(r.entry))};${formatTime(new Date(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
+    });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ore_straordinarie_${getDateISO(new Date())}.csv`;
+    a.click();
+}
+
+function deleteRecord(id) {
+    if (!confirm("Eliminare questa giornata?")) return;
+    records = records.filter(r => r.id !== id);
+    saveData();
+    renderHistory();
+    updateUI();
+}
+
+function clearHistory() {
+    if (!confirm("Cancellare TUTTO lo storico?")) return;
+    records = [];
+    saveData();
+    renderHistory();
+    updateUI();
+}
+
+function saveSettings() {
+    settings.normalHours = parseFloat(document.getElementById("normalHours").value) || 8;
+    saveData();
+    updateUI();
+}
+
+function updateToday() {
+    let worked = 0, pause = 0, overtime = 0;
+    if (currentDay) {
+        worked = calculateWorkedMinutes(currentDay);
+        pause = calculatePauseMinutes(currentDay);
+        overtime = calculateOvertime(currentDay);
+    } else {
+        const r = records.find(r => r.date === getDateISO(new Date()));
+        if (r) { worked = r.workedMinutes; pause = r.pauseMinutes; overtime = r.overtimeMinutes; }
+    }
+    document.getElementById("todayWorked").textContent = formatDuration(worked);
+    document.getElementById("todayPause").textContent = formatDuration(pause);
+    document.getElementById("todayOvertime").textContent = formatSignedDuration(overtime);
+    document.getElementById("totalOvertime").textContent = formatSignedDuration(records.reduce((a, b) => a + b.overtimeMinutes, 0));
+}
+
+function updateStatus() {
+    const s = document.getElementById("status");
+    const e = document.getElementById("entryBtn"), p = document.getElementById("pauseBtn"), r = document.getElementById("resumeBtn"), x = document.getElementById("exitBtn");
+
+    if (!currentDay) {
+        s.innerHTML = "⚪ Non sei al lavoro"; s.className = "status off";
+        e.disabled = false; p.disabled = true; r.disabled = true; x.disabled = true;
+        return;
+    }
+    if (currentDay.paused) {
+        const last = currentDay.pauses[currentDay.pauses.length - 1];
+        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(new Date(last.start)) + "</strong>";
+        s.className = "status pause";
+        e.disabled = true; p.disabled = true; r.disabled = false; x.disabled = true;
+        return;
+    }
+    s.innerHTML = "🟢 Al lavoro dalle <strong>" + formatTime(new Date(currentDay.entry)) + "</strong>";
+    s.className = "status work";
+    e.disabled = true; p.disabled = false; r.disabled = true; x.disabled = false;
+}
+
+function updateUI() { updateStatus(); updateToday(); renderLiveCorrection(); }
+function updateClock() {
+    const now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleTimeString("it-IT");
+    document.getElementById("date").textContent = now.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
+    updateToday();
+}
+
+setInterval(updateClock, 1000);
+function toggleTheme() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+}
+if (localStorage.getItem("darkMode") === "true") document.body.classList.add("dark");
+
+renderHistory();
+updateUI();
+updateClock();
+</script>
+</body>
+</html>
