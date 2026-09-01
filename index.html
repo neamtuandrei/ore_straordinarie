@@ -5,15 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Ore Straordinarie</title>
 
-<!-- Tag per iOS App / PWA -->
+<!-- Tag PWA iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ore Lavoro">
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 :root {
     --bg: #f3f4f6;
@@ -25,6 +23,7 @@
     --red: #dc2626;
     --orange: #ea580c;
     --blue: #2563eb;
+    --purple: #7c3aed;
 }
 
 body.dark {
@@ -58,15 +57,8 @@ header {
     margin-top: 10px;
 }
 
-h1 {
-    margin: 0;
-    font-size: 24px;
-}
-
-h2 {
-    margin-top: 0;
-    font-size: 18px;
-}
+h1 { margin: 0; font-size: 24px; }
+h2 { margin-top: 0; font-size: 18px; }
 
 .card {
     background: var(--card);
@@ -87,38 +79,13 @@ button {
     transition: .15s;
 }
 
-button:active {
-    transform: scale(0.98);
-}
+button:active { transform: scale(0.98); }
+button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
-button:disabled {
-    opacity: .35;
-    cursor: not-allowed;
-    transform: none;
-}
+.clock { text-align: center; font-size: 42px; font-weight: bold; margin: 5px 0; }
+.date { text-align: center; color: var(--muted); margin-bottom: 15px; text-transform: capitalize; font-size: 14px; }
 
-.clock {
-    text-align: center;
-    font-size: 42px;
-    font-weight: bold;
-    margin: 5px 0;
-}
-
-.date {
-    text-align: center;
-    color: var(--muted);
-    margin-bottom: 15px;
-    text-transform: capitalize;
-    font-size: 14px;
-}
-
-.status {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 20px;
-    font-size: 16px;
-}
-
+.status { text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 16px; }
 .status.work { color: var(--green); }
 .status.pause { color: var(--orange); }
 .status.off { color: var(--muted); }
@@ -157,12 +124,7 @@ button:disabled {
     font-size: 13px;
 }
 
-.time-value {
-    min-width: 55px;
-    text-align: center;
-    font-size: 17px;
-    font-weight: bold;
-}
+.time-value { min-width: 55px; text-align: center; font-size: 17px; font-weight: bold; }
 
 .adjust-btn {
     padding: 6px 7px;
@@ -187,16 +149,8 @@ button:disabled {
     border-radius: 12px;
 }
 
-.stat-label {
-    color: var(--muted);
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-
-.stat-value {
-    font-size: 18px;
-    font-weight: bold;
-}
+.stat-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.stat-value { font-size: 18px; font-weight: bold; }
 
 .overtime { color: var(--green); }
 .negative { color: var(--red); }
@@ -229,9 +183,28 @@ input {
 .history-actions { display: flex; gap: 6px; }
 .secondary { background: var(--blue); color: white; font-size: 13px; padding: 8px 12px; }
 .danger { background: var(--red); color: white; font-size: 13px; padding: 8px 12px; }
+.purple-btn { background: var(--purple); color: white; font-size: 13px; padding: 8px 12px; }
+
+.month-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.month-header {
+    background: rgba(0,0,0,0.03);
+    padding: 10px 14px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+}
 
 .history-item {
-    padding: 14px 0;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--border);
 }
 .history-item:last-child { border-bottom: none; }
@@ -239,7 +212,7 @@ input {
 .history-top {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .history-row-main {
@@ -258,7 +231,7 @@ input {
     text-align: center;
 }
 
-.history-date { font-weight: bold; font-size: 15px; }
+.history-date { font-weight: bold; font-size: 14px; }
 .small { color: var(--muted); font-size: 11px; }
 
 .delete-btn {
@@ -268,18 +241,38 @@ input {
     font-size: 16px;
 }
 
-.pause-list { margin-top: 10px; }
+.pause-list { margin-top: 8px; }
 .pause-item {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 6px;
-    padding: 6px 0;
+    padding: 4px 0;
     border-top: 1px dashed var(--border);
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .empty { text-align: center; color: var(--muted); padding: 20px; }
+
+/* VISTA PAGINA GESTIONE SEPARATA */
+#manageView {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
 
 @media (min-width: 600px) {
     .stats { grid-template-columns: repeat(4, 1fr); }
@@ -290,7 +283,8 @@ input {
 
 <body>
 
-<div class="container">
+<!-- SCHERMATA PRINCIPALE -->
+<div id="mainView" class="container">
 
 <header>
     <h1>⏱️ Ore Straordinarie</h1>
@@ -317,7 +311,7 @@ input {
     </div>
 </div>
 
-<!-- STATISTICHE -->
+<!-- STATISTICHE MENSILI -->
 <div class="card">
     <div class="stats">
         <div class="stat">
@@ -333,8 +327,8 @@ input {
             <div id="todayOvertime" class="stat-value overtime">0h 00m</div>
         </div>
         <div class="stat">
-            <div class="stat-label">Totale straordinari</div>
-            <div id="totalOvertime" class="stat-value overtime">0h 00m</div>
+            <div id="monthLabel" class="stat-label">Straordinario Mese</div>
+            <div id="monthOvertime" class="stat-value overtime">0h 00m</div>
         </div>
     </div>
 </div>
@@ -348,18 +342,34 @@ input {
     </div>
 </div>
 
-<!-- STORICO -->
+<!-- STORICO PRINCIPALE -->
 <div class="card">
     <div class="history-header">
-        <h2>📅 Storico</h2>
+        <h2>📅 Storico Mensile</h2>
         <div class="history-actions">
-            <button class="secondary" onclick="exportCSV()">📊 Esporta CSV</button>
-            <button class="danger" onclick="clearHistory()">🗑️</button>
+            <button class="secondary" onclick="exportCSV()">📊 CSV</button>
+            <button class="purple-btn" onclick="openManageView()">⚙️ Modifica</button>
         </div>
     </div>
     <div id="history"></div>
 </div>
 
+</div>
+
+<!-- SCHERMATA SEPARATA PER MODIFICA E ELIMINAZIONE -->
+<div id="manageView">
+    <div class="container">
+        <div class="manage-header">
+            <h1 style="font-size:20px;">🛠️ Gestione & Modifica Storico</h1>
+            <button class="secondary" onclick="closeManageView()">⬅️ Torna Indietro</button>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-bottom: 15px;">
+            <button class="danger" onclick="clearHistory()">🗑️ Cancella Tutto lo Storico</button>
+        </div>
+
+        <div id="manageHistory"></div>
+    </div>
 </div>
 
 <script>
@@ -384,6 +394,7 @@ function formatSignedDuration(m) {
     return "0h 00m";
 }
 function getDateISO(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function getMonthKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
 function isWeekend(d) { const day = d.getDay(); return (day === 0 || day === 6); }
 function getNormalMinutes() {
     return Math.round((parseFloat(document.getElementById("normalHours").value) || 8) * 60);
@@ -521,6 +532,7 @@ function adjustRecordTime(id, type, index, amount) {
 
     saveData();
     renderHistory();
+    renderManageHistory();
     updateUI();
 }
 
@@ -554,6 +566,24 @@ function timeControl(label, date, type, index) {
     `;
 }
 
+// RAGGRUPPAMENTO PER MESE
+function groupRecordsByMonth(recordList) {
+    const groups = {};
+    recordList.forEach(r => {
+        const d = new Date(r.entry);
+        const monthKey = getMonthKey(d);
+        const monthName = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+        
+        if (!groups[monthKey]) {
+            groups[monthKey] = { name: monthName, records: [], totalOvertime: 0 };
+        }
+        groups[monthKey].records.push(r);
+        groups[monthKey].totalOvertime += r.overtimeMinutes;
+    });
+    return groups;
+}
+
+// RENDER STORICO PRINCIPALE (PULITO, SENZA TASTI MODIFICA)
 function renderHistory() {
     const container = document.getElementById("history");
     if (records.length === 0) {
@@ -561,40 +591,113 @@ function renderHistory() {
         return;
     }
 
-    container.innerHTML = records.map(r => {
-        const overtimeClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
-        let pausesHTML = "";
-        r.pauses.forEach((p, idx) => {
-            pausesHTML += `
-                <div class="pause-item">
-                    <span>Pausa ${idx + 1}:</span>
-                    ${historyTimeControl(r, "pauseStart", idx, p.start)}
-                    <span>→</span>
-                    ${p.end ? historyTimeControl(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
-                </div>
-            `;
-        });
+    const groups = groupRecordsByMonth(records);
+    let html = "";
 
-        return `
-            <div class="history-item">
-                <div class="history-top">
-                    <div class="history-row-main">
-                        <div>
-                            <span class="history-date">${r.dayName}</span>
-                            <span class="small">(${formatItalianDate(r.date)})</span>
-                        </div>
-                        <button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button>
-                    </div>
-                    <div class="history-details">
-                        <div><div class="small">Entrata</div>${historyTimeControl(r, "entry", null, r.entry)}</div>
-                        <div><div class="small">Uscita</div>${historyTimeControl(r, "exit", null, r.exit)}</div>
-                        <div><div class="small">Straordinario</div><strong class="${overtimeClass}">${formatSignedDuration(r.overtimeMinutes)}</strong></div>
-                    </div>
+    for (const key in groups) {
+        const group = groups[key];
+        const overtimeClass = group.totalOvertime >= 0 ? "overtime" : "negative";
+
+        html += `
+            <div class="month-group">
+                <div class="month-header">
+                    <span style="text-transform: capitalize;">📅 ${group.name}</span>
+                    <span class="${overtimeClass}">Tot: ${formatSignedDuration(group.totalOvertime)}</span>
                 </div>
-                ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
+                ${group.records.map(r => {
+                    const otClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
+                    return `
+                        <div class="history-item">
+                            <div class="history-top">
+                                <div class="history-row-main">
+                                    <div>
+                                        <span class="history-date">${r.dayName}</span>
+                                        <span class="small">(${formatItalianDate(r.date)})</span>
+                                    </div>
+                                    <strong class="${otClass}" style="font-size:14px;">${formatSignedDuration(r.overtimeMinutes)}</strong>
+                                </div>
+                                <div class="history-details">
+                                    <div><div class="small">Entrata</div><strong>${formatTime(new Date(r.entry))}</strong></div>
+                                    <div><div class="small">Uscita</div><strong>${formatTime(new Date(r.exit))}</strong></div>
+                                    <div><div class="small">Lavorate</div><strong>${formatDuration(r.workedMinutes)}</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("")}
             </div>
         `;
-    }).join("");
+    }
+    container.innerHTML = html;
+}
+
+// RENDER STORICO NELLA PAGINA SEPARATA (CON CONTROLLI PER EDITARE ED ELIMINARE)
+function renderManageHistory() {
+    const container = document.getElementById("manageHistory");
+    if (records.length === 0) {
+        container.innerHTML = `<div class="empty">Nessuna giornata presente.</div>`;
+        return;
+    }
+
+    const groups = groupRecordsByMonth(records);
+    let html = "";
+
+    for (const key in groups) {
+        const group = groups[key];
+
+        html += `
+            <div class="month-group">
+                <div class="month-header">
+                    <span style="text-transform: capitalize;">📅 ${group.name}</span>
+                </div>
+                ${group.records.map(r => {
+                    const otClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
+                    let pausesHTML = "";
+                    r.pauses.forEach((p, idx) => {
+                        pausesHTML += `
+                            <div class="pause-item">
+                                <span>Pausa ${idx + 1}:</span>
+                                ${historyTimeControl(r, "pauseStart", idx, p.start)}
+                                <span>→</span>
+                                ${p.end ? historyTimeControl(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
+                            </div>
+                        `;
+                    });
+
+                    return `
+                        <div class="history-item">
+                            <div class="history-top">
+                                <div class="history-row-main">
+                                    <div>
+                                        <span class="history-date">${r.dayName}</span>
+                                        <span class="small">(${formatItalianDate(r.date)})</span>
+                                    </div>
+                                    <button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button>
+                                </div>
+                                <div class="history-details">
+                                    <div><div class="small">Entrata</div>${historyTimeControl(r, "entry", null, r.entry)}</div>
+                                    <div><div class="small">Uscita</div>${historyTimeControl(r, "exit", null, r.exit)}</div>
+                                    <div><div class="small">Straordinario</div><strong class="${otClass}">${formatSignedDuration(r.overtimeMinutes)}</strong></div>
+                                </div>
+                            </div>
+                            ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+function openManageView() {
+    renderManageHistory();
+    document.getElementById("manageView").style.display = "block";
+}
+
+function closeManageView() {
+    document.getElementById("manageView").style.display = "none";
+    renderHistory();
 }
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
@@ -631,6 +734,7 @@ function deleteRecord(id) {
     records = records.filter(r => r.id !== id);
     saveData();
     renderHistory();
+    renderManageHistory();
     updateUI();
 }
 
@@ -639,6 +743,7 @@ function clearHistory() {
     records = [];
     saveData();
     renderHistory();
+    renderManageHistory();
     updateUI();
 }
 
@@ -646,6 +751,13 @@ function saveSettings() {
     settings.normalHours = parseFloat(document.getElementById("normalHours").value) || 8;
     saveData();
     updateUI();
+}
+
+function getMonthlyOvertime() {
+    const currentMonthKey = getMonthKey(new Date());
+    return records
+        .filter(r => getMonthKey(new Date(r.entry)) === currentMonthKey)
+        .reduce((sum, r) => sum + r.overtimeMinutes, 0);
 }
 
 function updateToday() {
@@ -658,10 +770,15 @@ function updateToday() {
         const r = records.find(r => r.date === getDateISO(new Date()));
         if (r) { worked = r.workedMinutes; pause = r.pauseMinutes; overtime = r.overtimeMinutes; }
     }
+    
+    const now = new Date();
+    const monthName = now.toLocaleDateString("it-IT", { month: "short" });
+    document.getElementById("monthLabel").textContent = "Straordinario " + monthName;
+
     document.getElementById("todayWorked").textContent = formatDuration(worked);
     document.getElementById("todayPause").textContent = formatDuration(pause);
     document.getElementById("todayOvertime").textContent = formatSignedDuration(overtime);
-    document.getElementById("totalOvertime").textContent = formatSignedDuration(records.reduce((a, b) => a + b.overtimeMinutes, 0));
+    document.getElementById("monthOvertime").textContent = formatSignedDuration(getMonthlyOvertime());
 }
 
 function updateStatus() {
