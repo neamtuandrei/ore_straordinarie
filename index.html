@@ -162,16 +162,16 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
     justify-content: space-between;
 }
 
-input {
+input, select {
     padding: 8px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--card);
     color: var(--text);
     font-size: 16px;
-    width: 70px;
-    text-align: center;
 }
+
+input { width: 70px; text-align: center; }
 
 .history-header {
     display: flex;
@@ -253,6 +253,27 @@ input {
 }
 
 .empty { text-align: center; color: var(--muted); padding: 20px; }
+
+/* MODALE EXPORT CSV */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
 
 /* VISTA PAGINA GESTIONE SEPARATA */
 #manageView {
@@ -347,13 +368,28 @@ input {
     <div class="history-header">
         <h2>📅 Storico Mensile</h2>
         <div class="history-actions">
-            <button class="secondary" onclick="exportCSV()">📊 CSV</button>
+            <button class="secondary" onclick="openExportModal()">📊 CSV</button>
             <button class="purple-btn" onclick="openManageView()">⚙️ Modifica</button>
         </div>
     </div>
     <div id="history"></div>
 </div>
 
+</div>
+
+<!-- MODALE PER SCELTA MESE ESPORTAZIONE CSV -->
+<div id="exportModal" class="modal-overlay">
+    <div class="modal">
+        <h3 style="margin-top:0; font-size:18px;">📊 Esporta Mese CSV</h3>
+        <p style="font-size:14px; color:var(--muted);">Seleziona il mese che desideri scaricare:</p>
+        
+        <select id="exportMonthSelect" style="width:100%; margin-bottom: 20px; font-weight:bold;"></select>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="danger" style="background:var(--muted);" onclick="closeExportModal()">Annulla</button>
+            <button class="secondary" onclick="confirmExportCSV()">Scarica CSV</button>
+        </div>
+    </div>
 </div>
 
 <!-- SCHERMATA SEPARATA PER MODIFICA E ELIMINAZIONE -->
@@ -566,7 +602,6 @@ function timeControl(label, date, type, index) {
     `;
 }
 
-// RAGGRUPPAMENTO PER MESE
 function groupRecordsByMonth(recordList) {
     const groups = {};
     recordList.forEach(r => {
@@ -583,7 +618,6 @@ function groupRecordsByMonth(recordList) {
     return groups;
 }
 
-// RENDER STORICO PRINCIPALE (PULITO, SENZA TASTI MODIFICA)
 function renderHistory() {
     const container = document.getElementById("history");
     if (records.length === 0) {
@@ -631,7 +665,6 @@ function renderHistory() {
     container.innerHTML = html;
 }
 
-// RENDER STORICO NELLA PAGINA SEPARATA (CON CONTROLLI PER EDITARE ED ELIMINARE)
 function renderManageHistory() {
     const container = document.getElementById("manageHistory");
     if (records.length === 0) {
@@ -716,17 +749,47 @@ function historyTimeControl(record, type, index, iso) {
     `;
 }
 
-function exportCSV() {
+/* ESPORTAZIONE CSV CON SCELTA MESE */
+function openExportModal() {
     if (records.length === 0) return alert("Non ci sono dati da esportare.");
+    
+    const groups = groupRecordsByMonth(records);
+    const select = document.getElementById("exportMonthSelect");
+    select.innerHTML = "";
+
+    for (const key in groups) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = groups[key].name.charAt(0).toUpperCase() + groups[key].name.slice(1);
+        select.appendChild(option);
+    }
+
+    document.getElementById("exportModal").style.display = "flex";
+}
+
+function closeExportModal() {
+    document.getElementById("exportModal").style.display = "none";
+}
+
+function confirmExportCSV() {
+    const selectedKey = document.getElementById("exportMonthSelect").value;
+    if (!selectedKey) return;
+
+    const filteredRecords = records.filter(r => getMonthKey(new Date(r.entry)) === selectedKey);
+    if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
+
     let csv = "Data;Giorno;Entrata;Uscita;Pausa Totale (min);Ore Lavorate;Straordinario\n";
-    records.forEach(r => {
+    filteredRecords.forEach(r => {
         csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(new Date(r.entry))};${formatTime(new Date(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
+
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `ore_straordinarie_${getDateISO(new Date())}.csv`;
+    a.download = `ore_straordinarie_${selectedKey}.csv`;
     a.click();
+
+    closeExportModal();
 }
 
 function deleteRecord(id) {
