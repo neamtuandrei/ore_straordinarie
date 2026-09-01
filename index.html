@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ore Straordinarie</title>
+<title>Andrei-Redai srl</title>
 
 <!-- Tag PWA iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ore Lavoro">
+<meta name="apple-mobile-web-app-title" content="Andrei-Redai">
 
 <style>
 * { box-sizing: border-box; }
@@ -60,7 +60,7 @@ header {
     z-index: 10;
 }
 
-h1 { margin: 0; font-size: 24px; }
+h1 { margin: 0; font-size: 22px; }
 h2 { margin-top: 0; font-size: 18px; }
 
 .card {
@@ -324,7 +324,7 @@ select {
 <div id="mainView" class="container">
 
 <header>
-    <h1>⏱️ Ore Straordinarie</h1>
+    <h1>⏱️ Andrei-Redai srl</h1>
     <button class="theme-btn" onclick="toggleTheme()">🌙</button>
 </header>
 
@@ -435,7 +435,7 @@ let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
-/* PULIZIA ORARIO: AZZERA SECONDI E MILLISECONDI PER SPACCATA PRECISIONE AI MINUTI */
+/* PULIZIA ORARIO: AZZERA SECONDI E MILLISECONDI PER PRECISIONE AI MINUTI */
 function cleanDate(d) {
     const date = new Date(d);
     date.setSeconds(0, 0);
