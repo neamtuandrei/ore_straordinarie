@@ -41,7 +41,6 @@ body {
     color: var(--text);
     transition: .2s;
     padding-bottom: 30px;
-    /* Gestione dinamica dell'Isola Dinamica / Notch di iPhone */
     padding-top: env(safe-area-inset-top, 20px);
 }
 
@@ -462,6 +461,11 @@ function getNormalMinutes() {
     return Math.round((parseFloat(document.getElementById("normalHours").value) || 8) * 60);
 }
 
+function isTodayRecorded() {
+    const todayISO = getDateISO(new Date());
+    return records.some(r => r.date === todayISO);
+}
+
 function saveData() {
     localStorage.setItem("workRecords", JSON.stringify(records));
     localStorage.setItem("workSettings", JSON.stringify(settings));
@@ -471,6 +475,8 @@ function saveData() {
 
 function registerEntry() {
     if (currentDay) return alert("Hai già una giornata aperta.");
+    if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
+
     currentDay = { entry: cleanDate(new Date()).toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
     saveData();
     updateUI();
@@ -877,6 +883,13 @@ function updateToday() {
 function updateStatus() {
     const s = document.getElementById("status");
     const e = document.getElementById("entryBtn"), p = document.getElementById("pauseBtn"), r = document.getElementById("resumeBtn"), x = document.getElementById("exitBtn");
+
+    if (isTodayRecorded() && !currentDay) {
+        s.innerHTML = "🔴 Giornata già registrata per oggi";
+        s.className = "status off";
+        e.disabled = true; p.disabled = true; r.disabled = true; x.disabled = true;
+        return;
+    }
 
     if (!currentDay) {
         s.innerHTML = "⚪ Non sei al lavoro"; s.className = "status off";
