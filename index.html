@@ -131,32 +131,27 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
 .time-row {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     margin: 8px 0;
-    flex-wrap: wrap;
 }
 
 .time-label {
-    width: 100%;
-    text-align: center;
     color: var(--muted);
     font-weight: bold;
     font-size: 13px;
 }
 
-.time-value { min-width: 55px; text-align: center; font-size: 17px; font-weight: bold; }
-
-.adjust-btn {
-    padding: 6px 7px;
+.time-input-manual {
+    padding: 6px 8px;
     border-radius: 8px;
-    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
     font-weight: bold;
 }
-
-.minus { background: #ef4444; color: white; }
-.plus { background: var(--green); color: white; }
 
 .stats {
     display: grid;
@@ -193,7 +188,7 @@ input, select {
     font-size: 16px;
 }
 
-input { width: 70px; text-align: center; }
+input[type="number"] { width: 70px; text-align: center; }
 
 .history-header {
     display: flex;
@@ -253,6 +248,15 @@ input { width: 70px; text-align: center; }
     text-align: center;
 }
 
+.history-details-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0,0,0,0.02);
+    padding: 10px;
+    border-radius: 8px;
+}
+
 .history-date { font-weight: bold; font-size: 14px; }
 .small { color: var(--muted); font-size: 11px; }
 
@@ -266,12 +270,11 @@ input { width: 70px; text-align: center; }
 .pause-list { margin-top: 8px; }
 .pause-item {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
-    padding: 4px 0;
+    padding: 6px 0;
     border-top: 1px dashed var(--border);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .empty { text-align: center; color: var(--muted); padding: 20px; }
@@ -320,7 +323,6 @@ input { width: 70px; text-align: center; }
 
 @media (min-width: 600px) {
     .stats { grid-template-columns: repeat(4, 1fr); }
-    .time-label { width: auto; }
 }
 </style>
 </head>
@@ -354,9 +356,9 @@ input { width: 70px; text-align: center; }
         <button id="forgotExitBtn" class="btn-forgot" onclick="openForgotModal('exit')">⚠️ Dimenticato Uscita</button>
     </div>
 
-    <!-- CORREZIONI -->
+    <!-- CORREZIONI GIORNATA CORRENTE -->
     <div id="liveCorrection" class="time-correction" style="display:none">
-        <h3 style="text-align:center; font-size:15px; margin:0 0 10px 0;">🛠️ Correggi orari di oggi</h3>
+        <h3 style="text-align:center; font-size:15px; margin:0 0 10px 0;">🛠️ Modifica orari di oggi</h3>
         <div id="liveTimes"></div>
     </div>
 </div>
@@ -423,7 +425,7 @@ input { width: 70px; text-align: center; }
 <div id="forgotModal" class="modal-overlay">
     <div class="modal">
         <h3 id="forgotTitle" style="margin-top:0; font-size:18px;">⚠️ Imposta Orario</h3>
-        <p id="forgotDesc" style="font-size:14px; color:var(--muted);">Seleziona l'orario di entrata:</p>
+        <p id="forgotDesc" style="font-size:14px; color:var(--muted);">Seleziona l'orario:</p>
         <input type="time" id="forgotTimeInput" style="width:100%; font-size:20px; padding:10px; margin-bottom:20px;">
         <div style="display:flex; gap:10px; justify-content:flex-end;">
             <button class="danger" style="background:var(--muted);" onclick="closeForgotModal()">Annulla</button>
@@ -456,6 +458,24 @@ if (settings.normalHours !== undefined) {
     document.getElementById("normalHours").value = settings.normalHours;
 }
 
+/* ARROTONDAMENTO SECONDO REGOLA AZIENDALE (Tolleranza 5 Minuti su Quarti d'Ora) */
+function applyCompanyRounding(d) {
+    const date = new Date(d);
+    date.setSeconds(0, 0);
+    
+    const minutes = date.getMinutes();
+    const remainder = minutes % 15;
+
+    if (remainder <= 5) {
+        // Entro 5 minuti: arrotonda all'inizio del quarto d'ora (es. 08:04 -> 08:00)
+        date.setMinutes(minutes - remainder);
+    } else {
+        // Oltre 5 minuti: arrotonda al quarto d'ora successivo (es. 08:06 -> 08:15)
+        date.setMinutes(minutes + (15 - remainder));
+    }
+    return date;
+}
+
 function cleanDate(d) {
     const date = new Date(d);
     date.setSeconds(0, 0);
@@ -464,6 +484,11 @@ function cleanDate(d) {
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function getTimeInputValue(d) {
+    const date = cleanDate(d);
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function formatDuration(m) {
     m = Math.max(0, Math.round(m));
     return Math.floor(m / 60) + "h " + pad(m % 60) + "m";
@@ -503,21 +528,22 @@ function registerEntry() {
     if (currentDay) return alert("Hai già una giornata aperta.");
     if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
 
-    currentDay = { entry: cleanDate(new Date()).toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    const roundedNow = applyCompanyRounding(new Date());
+    currentDay = { entry: roundedNow.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
     saveData();
     updateUI();
 }
 
 function togglePause() {
     if (!currentDay) return alert("Prima devi registrare l'entrata.");
-    const now = cleanDate(new Date()).toISOString();
+    const roundedNow = applyCompanyRounding(new Date()).toISOString();
     if (!currentDay.paused) {
         currentDay.paused = true;
-        currentDay.pauses.push({ start: now, end: null });
+        currentDay.pauses.push({ start: roundedNow, end: null });
     } else {
         currentDay.paused = false;
         const last = currentDay.pauses[currentDay.pauses.length - 1];
-        if (last) last.end = now;
+        if (last) last.end = roundedNow;
     }
     saveData();
     updateUI();
@@ -527,7 +553,7 @@ function registerExit() {
     if (!currentDay) return alert("Non hai registrato l'entrata.");
     if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
     
-    currentDay.exit = cleanDate(new Date()).toISOString();
+    currentDay.exit = applyCompanyRounding(new Date()).toISOString();
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
@@ -553,8 +579,8 @@ function registerExit() {
 function openForgotModal(type) {
     forgotTypeAction = type;
     const timeInput = document.getElementById("forgotTimeInput");
-    const now = new Date();
-    timeInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const roundedNow = applyCompanyRounding(new Date());
+    timeInput.value = `${pad(roundedNow.getHours())}:${pad(roundedNow.getMinutes())}`;
 
     if (type === "entry") {
         if (currentDay) return alert("Hai già una giornata aperta.");
@@ -649,33 +675,31 @@ function calculateOvertime(day) {
     return Math.max(0, worked - getNormalMinutes());
 }
 
-function adjustTime(type, index, amount) {
-    if (!currentDay) return;
-    let date;
-    if (type === "entry") {
-        date = cleanDate(currentDay.entry);
-        date.setMinutes(date.getMinutes() + amount);
-        currentDay.entry = date.toISOString();
-    } else if (type === "pauseStart") {
-        date = cleanDate(currentDay.pauses[index].start);
-        date.setMinutes(date.getMinutes() + amount);
-        currentDay.pauses[index].start = date.toISOString();
-    } else if (type === "pauseEnd") {
-        date = cleanDate(currentDay.pauses[index].end);
-        date.setMinutes(date.getMinutes() + amount);
-        currentDay.pauses[index].end = date.toISOString();
-    }
+/* MODIFICA MANUALE TRAMITE INPUT TIME */
+function updateLiveTimeManual(type, index, timeVal) {
+    if (!currentDay || !timeVal) return;
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    
+    let baseIso = type === "entry" ? currentDay.entry : currentDay.pauses[index][type === "pauseStart" ? "start" : "end"];
+    let d = cleanDate(baseIso);
+    d.setHours(hours, minutes, 0, 0);
+
+    if (type === "entry") currentDay.entry = d.toISOString();
+    else if (type === "pauseStart") currentDay.pauses[index].start = d.toISOString();
+    else if (type === "pauseEnd") currentDay.pauses[index].end = d.toISOString();
+
     saveData();
     updateUI();
 }
 
-function adjustRecordTime(id, type, index, amount) {
+function updateRecordTimeManual(id, type, index, timeVal) {
     const record = records.find(r => r.id === id);
-    if (!record) return;
+    if (!record || !timeVal) return;
 
-    let targetIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
-    let d = cleanDate(targetIso);
-    d.setMinutes(d.getMinutes() + amount);
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    let baseIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
+    let d = cleanDate(baseIso);
+    d.setHours(hours, minutes, 0, 0);
 
     if (type === "entry") record.entry = d.toISOString();
     else if (type === "exit") record.exit = d.toISOString();
@@ -703,26 +727,21 @@ function renderLiveCorrection() {
     if (!currentDay) { box.style.display = "none"; return; }
     box.style.display = "block";
 
-    let html = timeControl("Entrata", cleanDate(currentDay.entry), "entry", null);
+    let html = timeControlManual("Entrata", cleanDate(currentDay.entry), "entry", null);
     currentDay.pauses.forEach((p, idx) => {
-        html += timeControl("Pausa " + (idx + 1) + " inizio", cleanDate(p.start), "pauseStart", idx);
-        if (p.end) html += timeControl("Pausa " + (idx + 1) + " fine", cleanDate(p.end), "pauseEnd", idx);
+        html += timeControlManual("Pausa " + (idx + 1) + " inizio", cleanDate(p.start), "pauseStart", idx);
+        if (p.end) html += timeControlManual("Pausa " + (idx + 1) + " fine", cleanDate(p.end), "pauseEnd", idx);
     });
     times.innerHTML = html;
 }
 
-function timeControl(label, date, type, index) {
+function timeControlManual(label, date, type, index) {
     const idx = index === null ? "null" : index;
+    const val = getTimeInputValue(date);
     return `
         <div class="time-row">
-            <div class="time-label">${label}</div>
-            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -15)">-15m</button>
-            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -5)">-5m</button>
-            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -1)">-1m</button>
-            <div class="time-value">${formatTime(date)}</div>
-            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 1)">+1m</button>
-            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 5)">+5m</button>
-            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 15)">+15m</button>
+            <span class="time-label">${label}:</span>
+            <input type="time" class="time-input-manual" value="${val}" onchange="updateLiveTimeManual('${type}', ${idx}, this.value)">
         </div>
     `;
 }
@@ -814,10 +833,10 @@ function renderManageHistory() {
                     r.pauses.forEach((p, idx) => {
                         pausesHTML += `
                             <div class="pause-item">
-                                <span>Pausa ${idx + 1}:</span>
-                                ${historyTimeControl(r, "pauseStart", idx, p.start)}
-                                <span>→</span>
-                                ${p.end ? historyTimeControl(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
+                                <span class="small">Pausa ${idx + 1} inizio:</span>
+                                ${historyInputManual(r, "pauseStart", idx, p.start)}
+                                <span class="small">fine:</span>
+                                ${p.end ? historyInputManual(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
                             </div>
                         `;
                     });
@@ -825,17 +844,26 @@ function renderManageHistory() {
                     return `
                         <div class="history-item">
                             <div class="history-top">
-                                <div class="history-row-main">
+                                <div class="history-row-main" style="margin-bottom:8px;">
                                     <div>
                                         <span class="history-date">${r.dayName}</span>
                                         <span class="small">(${formatItalianDate(r.date)})</span>
                                     </div>
                                     <button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button>
                                 </div>
-                                <div class="history-details">
-                                    <div><div class="small">Entrata</div>${historyTimeControl(r, "entry", null, r.entry)}</div>
-                                    <div><div class="small">Uscita</div>${historyTimeControl(r, "exit", null, r.exit)}</div>
-                                    <div><div class="small">Straordinario</div><strong class="${otClass}">${formatSignedDuration(r.overtimeMinutes)}</strong></div>
+                                <div class="history-details-edit">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span class="small">Entrata:</span>
+                                        ${historyInputManual(r, "entry", null, r.entry)}
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span class="small">Uscita:</span>
+                                        ${historyInputManual(r, "exit", null, r.exit)}
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--border); padding-top:4px;">
+                                        <span class="small">Straordinario:</span>
+                                        <strong class="${otClass}">${formatSignedDuration(r.overtimeMinutes)}</strong>
+                                    </div>
                                 </div>
                             </div>
                             ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
@@ -846,6 +874,13 @@ function renderManageHistory() {
         `;
     }
     container.innerHTML = html;
+}
+
+function historyInputManual(record, type, index, iso) {
+    const date = cleanDate(iso);
+    const idx = index === null ? "null" : index;
+    const val = getTimeInputValue(date);
+    return `<input type="time" class="time-input-manual" value="${val}" onchange="updateRecordTimeManual(${record.id}, '${type}', ${idx}, this.value)">`;
 }
 
 function openManageView() {
@@ -861,20 +896,6 @@ function closeManageView() {
 }
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
-
-function historyTimeControl(record, type, index, iso) {
-    const date = cleanDate(iso);
-    const idx = index === null ? "null" : index;
-    return `
-        <span style="display:inline-flex; align-items:center; gap:1px; flex-wrap:wrap; justify-content:center;">
-            <button class="adjust-btn minus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -5)">-5</button>
-            <button class="adjust-btn minus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -1)">-1</button>
-            <strong style="font-size:12px; margin:0 1px;">${formatTime(date)}</strong>
-            <button class="adjust-btn plus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 1)">+1</button>
-            <button class="adjust-btn plus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 5)">+5</button>
-        </span>
-    `;
-}
 
 /* ESPORTAZIONE CSV CON SCELTA MESE */
 function openExportModal() {
