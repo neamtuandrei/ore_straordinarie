@@ -158,14 +158,14 @@ button:disabled {
 }
 
 .time-value {
-    min-width: 60px;
+    min-width: 55px;
     text-align: center;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
 }
 
 .adjust-btn {
-    padding: 6px 8px;
+    padding: 6px 7px;
     border-radius: 8px;
     font-size: 12px;
     font-weight: bold;
@@ -251,7 +251,7 @@ input {
 .history-details {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px;
     background: rgba(0,0,0,0.02);
     padding: 8px;
     border-radius: 8px;
@@ -545,7 +545,9 @@ function timeControl(label, date, type, index) {
             <div class="time-label">${label}</div>
             <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -15)">-15m</button>
             <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -5)">-5m</button>
+            <button class="adjust-btn minus" onclick="adjustTime('${type}', ${idx}, -1)">-1m</button>
             <div class="time-value">${formatTime(date)}</div>
+            <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 1)">+1m</button>
             <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 5)">+5m</button>
             <button class="adjust-btn plus" onclick="adjustTime('${type}', ${idx}, 15)">+15m</button>
         </div>
@@ -601,10 +603,12 @@ function historyTimeControl(record, type, index, iso) {
     const date = new Date(iso);
     const idx = index === null ? "null" : index;
     return `
-        <span style="display:inline-flex; align-items:center; gap:2px;">
-            <button class="adjust-btn minus" style="padding:2px 4px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -5)">-5</button>
-            <strong style="font-size:13px; margin:0 2px;">${formatTime(date)}</strong>
-            <button class="adjust-btn plus" style="padding:2px 4px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 5)">+5</button>
+        <span style="display:inline-flex; align-items:center; gap:1px; flex-wrap:wrap; justify-content:center;">
+            <button class="adjust-btn minus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -5)">-5</button>
+            <button class="adjust-btn minus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, -1)">-1</button>
+            <strong style="font-size:12px; margin:0 1px;">${formatTime(date)}</strong>
+            <button class="adjust-btn plus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 1)">+1</button>
+            <button class="adjust-btn plus" style="padding:2px 3px; font-size:10px;" onclick="adjustRecordTime(${record.id}, '${type}', ${idx}, 5)">+5</button>
         </span>
     `;
 }
