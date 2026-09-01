@@ -172,14 +172,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 .overtime { color: var(--green); }
 .negative { color: var(--red); }
 
-.settings {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: space-between;
-}
-
-input, select {
+select {
     padding: 8px;
     border-radius: 8px;
     border: 1px solid var(--border);
@@ -187,8 +180,6 @@ input, select {
     color: var(--text);
     font-size: 16px;
 }
-
-input[type="number"] { width: 70px; text-align: center; }
 
 .history-header {
     display: flex;
@@ -385,15 +376,6 @@ input[type="number"] { width: 70px; text-align: center; }
     </div>
 </div>
 
-<!-- IMPOSTAZIONI -->
-<div class="card">
-    <h2>⚙️ Impostazioni</h2>
-    <div class="settings">
-        <label style="font-size:14px;">Ore normali Lun–Ven:</label>
-        <input id="normalHours" type="number" min="0" max="24" step="0.25" value="8" onchange="saveSettings()">
-    </div>
-</div>
-
 <!-- STORICO PRINCIPALE -->
 <div class="card">
     <div class="history-header">
@@ -450,13 +432,8 @@ input[type="number"] { width: 70px; text-align: center; }
 
 <script>
 let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
-let settings = JSON.parse(localStorage.getItem("workSettings") || "{}");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
-
-if (settings.normalHours !== undefined) {
-    document.getElementById("normalHours").value = settings.normalHours;
-}
 
 /* ARROTONDAMENTO REGOLA AZIENDALE (Tolleranza 5 Minuti su Quarti d'Ora) */
 function applyCompanyRounding(d) {
@@ -507,7 +484,7 @@ function getMonthKey(d) {
 }
 function isWeekend(d) { const day = cleanDate(d).getDay(); return (day === 0 || day === 6); }
 function getNormalMinutes() {
-    return Math.round((parseFloat(document.getElementById("normalHours").value) || 8) * 60);
+    return 8 * 60; // Fisso a 8 ore dal Lunedì al Venerdì
 }
 
 function isTodayRecorded() {
@@ -517,7 +494,6 @@ function isTodayRecorded() {
 
 function saveData() {
     localStorage.setItem("workRecords", JSON.stringify(records));
-    localStorage.setItem("workSettings", JSON.stringify(settings));
     if (currentDay) localStorage.setItem("currentDay", JSON.stringify(currentDay));
     else localStorage.removeItem("currentDay");
 }
@@ -673,7 +649,7 @@ function calculateOvertime(day) {
     return Math.max(0, worked - getNormalMinutes());
 }
 
-/* MODIFICA MANUALE (SENZA CHIUDERE LA TASTIERA) */
+/* MODIFICA MANUALE */
 function updateLiveTimeManual(type, index, timeVal) {
     if (!currentDay || !timeVal) return;
     const [hours, minutes] = timeVal.split(":").map(Number);
@@ -687,7 +663,7 @@ function updateLiveTimeManual(type, index, timeVal) {
     else if (type === "pauseEnd") currentDay.pauses[index].end = d.toISOString();
 
     saveData();
-    updateToday(); // Aggiorna solo le cifre senza ridisegnare la schermata
+    updateToday();
 }
 
 function updateRecordTimeManual(id, type, index, timeVal, el) {
@@ -715,7 +691,6 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
 
     saveData();
     
-    // Aggiorna il testo dello straordinario in diretta nell'elemento senza re-renderizzare
     const itemCard = el.closest('.history-item');
     if (itemCard) {
         const otEl = itemCard.querySelector('.overtime, .negative');
@@ -961,12 +936,6 @@ function clearHistory() {
     saveData();
     renderHistory();
     renderManageHistory();
-    updateUI();
-}
-
-function saveSettings() {
-    settings.normalHours = parseFloat(document.getElementById("normalHours").value) || 8;
-    saveData();
     updateUI();
 }
 
