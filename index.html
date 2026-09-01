@@ -458,7 +458,7 @@ if (settings.normalHours !== undefined) {
     document.getElementById("normalHours").value = settings.normalHours;
 }
 
-/* ARROTONDAMENTO SECONDO REGOLA AZIENDALE (Tolleranza 5 Minuti su Quarti d'Ora) */
+/* ARROTONDAMENTO REGOLA AZIENDALE (Tolleranza 5 Minuti su Quarti d'Ora) */
 function applyCompanyRounding(d) {
     const date = new Date(d);
     date.setSeconds(0, 0);
@@ -467,10 +467,8 @@ function applyCompanyRounding(d) {
     const remainder = minutes % 15;
 
     if (remainder <= 5) {
-        // Entro 5 minuti: arrotonda all'inizio del quarto d'ora (es. 08:04 -> 08:00)
         date.setMinutes(minutes - remainder);
     } else {
-        // Oltre 5 minuti: arrotonda al quarto d'ora successivo (es. 08:06 -> 08:15)
         date.setMinutes(minutes + (15 - remainder));
     }
     return date;
@@ -605,7 +603,7 @@ function confirmForgotTime() {
     if (!timeVal) return alert("Inserisci un orario valido.");
 
     const [hours, minutes] = timeVal.split(":").map(Number);
-    const targetDate = cleanDate(new Date());
+    const targetDate = applyCompanyRounding(new Date());
     targetDate.setHours(hours, minutes, 0, 0);
 
     if (forgotTypeAction === "entry") {
@@ -675,7 +673,7 @@ function calculateOvertime(day) {
     return Math.max(0, worked - getNormalMinutes());
 }
 
-/* MODIFICA MANUALE TRAMITE INPUT TIME */
+/* MODIFICA MANUALE (SENZA CHIUDERE LA TASTIERA) */
 function updateLiveTimeManual(type, index, timeVal) {
     if (!currentDay || !timeVal) return;
     const [hours, minutes] = timeVal.split(":").map(Number);
@@ -689,10 +687,10 @@ function updateLiveTimeManual(type, index, timeVal) {
     else if (type === "pauseEnd") currentDay.pauses[index].end = d.toISOString();
 
     saveData();
-    updateUI();
+    updateToday(); // Aggiorna solo le cifre senza ridisegnare la schermata
 }
 
-function updateRecordTimeManual(id, type, index, timeVal) {
+function updateRecordTimeManual(id, type, index, timeVal, el) {
     const record = records.find(r => r.id === id);
     if (!record || !timeVal) return;
 
@@ -716,9 +714,17 @@ function updateRecordTimeManual(id, type, index, timeVal) {
     record.dayName = entryDate.toLocaleDateString("it-IT", { weekday: "long" });
 
     saveData();
-    renderHistory();
-    renderManageHistory();
-    updateUI();
+    
+    // Aggiorna il testo dello straordinario in diretta nell'elemento senza re-renderizzare
+    const itemCard = el.closest('.history-item');
+    if (itemCard) {
+        const otEl = itemCard.querySelector('.overtime, .negative');
+        if (otEl) {
+            otEl.textContent = formatSignedDuration(record.overtimeMinutes);
+            otEl.className = record.overtimeMinutes >= 0 ? "overtime" : "negative";
+        }
+    }
+    updateToday();
 }
 
 function renderLiveCorrection() {
@@ -880,7 +886,7 @@ function historyInputManual(record, type, index, iso) {
     const date = cleanDate(iso);
     const idx = index === null ? "null" : index;
     const val = getTimeInputValue(date);
-    return `<input type="time" class="time-input-manual" value="${val}" onchange="updateRecordTimeManual(${record.id}, '${type}', ${idx}, this.value)">`;
+    return `<input type="time" class="time-input-manual" value="${val}" onchange="updateRecordTimeManual(${record.id}, '${type}', ${idx}, this.value, this)">`;
 }
 
 function openManageView() {
