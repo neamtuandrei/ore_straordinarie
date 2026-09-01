@@ -417,8 +417,15 @@ if (settings.normalHours !== undefined) {
     document.getElementById("normalHours").value = settings.normalHours;
 }
 
+// Azzera i secondi per evitare discrepanze di minuti
+function cleanDate(d) {
+    const date = new Date(d);
+    date.setSeconds(0, 0);
+    return date;
+}
+
 function pad(n) { return String(n).padStart(2, "0"); }
-function formatTime(d) { return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
 function formatDuration(m) {
     m = Math.max(0, Math.round(m));
     return Math.floor(m / 60) + "h " + pad(m % 60) + "m";
@@ -429,9 +436,15 @@ function formatSignedDuration(m) {
     if (m < 0) return "-" + formatDuration(Math.abs(m));
     return "0h 00m";
 }
-function getDateISO(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
-function getMonthKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
-function isWeekend(d) { const day = d.getDay(); return (day === 0 || day === 6); }
+function getDateISO(d) { 
+    const date = cleanDate(d);
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()); 
+}
+function getMonthKey(d) { 
+    const date = cleanDate(d);
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1); 
+}
+function isWeekend(d) { const day = cleanDate(d).getDay(); return (day === 0 || day === 6); }
 function getNormalMinutes() {
     return Math.round((parseFloat(document.getElementById("normalHours").value) || 8) * 60);
 }
@@ -445,14 +458,14 @@ function saveData() {
 
 function registerEntry() {
     if (currentDay) return alert("Hai già una giornata aperta.");
-    currentDay = { entry: new Date().toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    currentDay = { entry: cleanDate(new Date()).toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
     saveData();
     updateUI();
 }
 
 function togglePause() {
     if (!currentDay) return alert("Prima devi registrare l'entrata.");
-    const now = new Date().toISOString();
+    const now = cleanDate(new Date()).toISOString();
     if (!currentDay.paused) {
         currentDay.paused = true;
         currentDay.pauses.push({ start: now, end: null });
@@ -469,10 +482,10 @@ function registerExit() {
     if (!currentDay) return alert("Non hai registrato l'entrata.");
     if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
     
-    currentDay.exit = new Date().toISOString();
+    currentDay.exit = cleanDate(new Date()).toISOString();
     currentDay.isClosed = true;
 
-    const entryDate = new Date(currentDay.entry);
+    const entryDate = cleanDate(currentDay.entry);
     records.unshift({
         id: Date.now(),
         date: getDateISO(entryDate),
@@ -493,13 +506,14 @@ function registerExit() {
 
 function calculateWorkedMinutes(day) {
     if (!day || !day.entry) return 0;
-    const start = new Date(day.entry);
-    const end = day.isClosed ? new Date(day.exit) : new Date();
+    const start = cleanDate(day.entry);
+    const end = day.isClosed ? cleanDate(day.exit) : cleanDate(new Date());
     let total = 0, workStart = start;
 
     for (const p of day.pauses) {
-        total += Math.max(0, (new Date(p.start) - workStart) / 60000);
-        if (p.end) workStart = new Date(p.end);
+        const pStart = cleanDate(p.start);
+        total += Math.max(0, (pStart - workStart) / 60000);
+        if (p.end) workStart = cleanDate(p.end);
         else return Math.round(total);
     }
     total += Math.max(0, (end - workStart) / 60000);
@@ -511,8 +525,9 @@ function calculatePauseMinutes(day) {
     let total = 0;
     for (const p of day.pauses) {
         if (!p.start) continue;
-        const end = p.end ? new Date(p.end) : new Date();
-        total += Math.max(0, (end - new Date(p.start)) / 60000);
+        const pStart = cleanDate(p.start);
+        const end = p.end ? cleanDate(p.end) : cleanDate(new Date());
+        total += Math.max(0, (end - pStart) / 60000);
     }
     return Math.round(total);
 }
@@ -520,7 +535,7 @@ function calculatePauseMinutes(day) {
 function calculateOvertime(day) {
     if (!day) return 0;
     const worked = calculateWorkedMinutes(day);
-    if (isWeekend(new Date(day.entry))) return worked;
+    if (isWeekend(cleanDate(day.entry))) return worked;
     return Math.max(0, worked - getNormalMinutes());
 }
 
@@ -528,15 +543,15 @@ function adjustTime(type, index, amount) {
     if (!currentDay) return;
     let date;
     if (type === "entry") {
-        date = new Date(currentDay.entry);
+        date = cleanDate(currentDay.entry);
         date.setMinutes(date.getMinutes() + amount);
         currentDay.entry = date.toISOString();
     } else if (type === "pauseStart") {
-        date = new Date(currentDay.pauses[index].start);
+        date = cleanDate(currentDay.pauses[index].start);
         date.setMinutes(date.getMinutes() + amount);
         currentDay.pauses[index].start = date.toISOString();
     } else if (type === "pauseEnd") {
-        date = new Date(currentDay.pauses[index].end);
+        date = cleanDate(currentDay.pauses[index].end);
         date.setMinutes(date.getMinutes() + amount);
         currentDay.pauses[index].end = date.toISOString();
     }
@@ -549,7 +564,7 @@ function adjustRecordTime(id, type, index, amount) {
     if (!record) return;
 
     let targetIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
-    let d = new Date(targetIso);
+    let d = cleanDate(targetIso);
     d.setMinutes(d.getMinutes() + amount);
 
     if (type === "entry") record.entry = d.toISOString();
@@ -562,7 +577,7 @@ function adjustRecordTime(id, type, index, amount) {
     record.pauseMinutes = calculatePauseMinutes(tempDay);
     record.overtimeMinutes = calculateOvertime(tempDay);
 
-    const entryDate = new Date(record.entry);
+    const entryDate = cleanDate(record.entry);
     record.date = getDateISO(entryDate);
     record.dayName = entryDate.toLocaleDateString("it-IT", { weekday: "long" });
 
@@ -578,10 +593,10 @@ function renderLiveCorrection() {
     if (!currentDay) { box.style.display = "none"; return; }
     box.style.display = "block";
 
-    let html = timeControl("Entrata", new Date(currentDay.entry), "entry", null);
+    let html = timeControl("Entrata", cleanDate(currentDay.entry), "entry", null);
     currentDay.pauses.forEach((p, idx) => {
-        html += timeControl("Pausa " + (idx + 1) + " inizio", new Date(p.start), "pauseStart", idx);
-        if (p.end) html += timeControl("Pausa " + (idx + 1) + " fine", new Date(p.end), "pauseEnd", idx);
+        html += timeControl("Pausa " + (idx + 1) + " inizio", cleanDate(p.start), "pauseStart", idx);
+        if (p.end) html += timeControl("Pausa " + (idx + 1) + " fine", cleanDate(p.end), "pauseEnd", idx);
     });
     times.innerHTML = html;
 }
@@ -605,7 +620,7 @@ function timeControl(label, date, type, index) {
 function groupRecordsByMonth(recordList) {
     const groups = {};
     recordList.forEach(r => {
-        const d = new Date(r.entry);
+        const d = cleanDate(r.entry);
         const monthKey = getMonthKey(d);
         const monthName = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
         
@@ -651,8 +666,8 @@ function renderHistory() {
                                     <strong class="${otClass}" style="font-size:14px;">${formatSignedDuration(r.overtimeMinutes)}</strong>
                                 </div>
                                 <div class="history-details">
-                                    <div><div class="small">Entrata</div><strong>${formatTime(new Date(r.entry))}</strong></div>
-                                    <div><div class="small">Uscita</div><strong>${formatTime(new Date(r.exit))}</strong></div>
+                                    <div><div class="small">Entrata</div><strong>${formatTime(cleanDate(r.entry))}</strong></div>
+                                    <div><div class="small">Uscita</div><strong>${formatTime(cleanDate(r.exit))}</strong></div>
                                     <div><div class="small">Lavorate</div><strong>${formatDuration(r.workedMinutes)}</strong></div>
                                 </div>
                             </div>
@@ -736,7 +751,7 @@ function closeManageView() {
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
 function historyTimeControl(record, type, index, iso) {
-    const date = new Date(iso);
+    const date = cleanDate(iso);
     const idx = index === null ? "null" : index;
     return `
         <span style="display:inline-flex; align-items:center; gap:1px; flex-wrap:wrap; justify-content:center;">
@@ -775,12 +790,12 @@ function confirmExportCSV() {
     const selectedKey = document.getElementById("exportMonthSelect").value;
     if (!selectedKey) return;
 
-    const filteredRecords = records.filter(r => getMonthKey(new Date(r.entry)) === selectedKey);
+    const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
     let csv = "Data;Giorno;Entrata;Uscita;Pausa Totale (min);Ore Lavorate;Straordinario\n";
     filteredRecords.forEach(r => {
-        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(new Date(r.entry))};${formatTime(new Date(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
+        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -819,7 +834,7 @@ function saveSettings() {
 function getMonthlyOvertime() {
     const currentMonthKey = getMonthKey(new Date());
     return records
-        .filter(r => getMonthKey(new Date(r.entry)) === currentMonthKey)
+        .filter(r => getMonthKey(cleanDate(r.entry)) === currentMonthKey)
         .reduce((sum, r) => sum + r.overtimeMinutes, 0);
 }
 
@@ -855,12 +870,12 @@ function updateStatus() {
     }
     if (currentDay.paused) {
         const last = currentDay.pauses[currentDay.pauses.length - 1];
-        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(new Date(last.start)) + "</strong>";
+        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(cleanDate(last.start)) + "</strong>";
         s.className = "status pause";
         e.disabled = true; p.disabled = true; r.disabled = false; x.disabled = true;
         return;
     }
-    s.innerHTML = "🟢 Al lavoro dalle <strong>" + formatTime(new Date(currentDay.entry)) + "</strong>";
+    s.innerHTML = "🟢 Al lavoro dalle <strong>" + formatTime(cleanDate(currentDay.entry)) + "</strong>";
     s.className = "status work";
     e.disabled = true; p.disabled = false; r.disabled = true; x.disabled = false;
 }
