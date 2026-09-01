@@ -108,10 +108,20 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
     gap: 12px;
 }
 
+.forgot-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+}
+
 .btn-entry { background: var(--green); color: white; padding: 16px; font-size: 18px; }
 .btn-pause { background: var(--orange); color: white; padding: 16px; font-size: 18px; }
 .btn-resume { background: var(--blue); color: white; padding: 16px; font-size: 18px; }
 .btn-exit { background: var(--red); color: white; padding: 16px; font-size: 18px; }
+.btn-forgot { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 10px; }
 
 .time-correction {
     margin-top: 20px;
@@ -266,7 +276,7 @@ input { width: 70px; text-align: center; }
 
 .empty { text-align: center; color: var(--muted); padding: 20px; }
 
-/* MODALE EXPORT CSV */
+/* MODALI E OVERLAY */
 .modal-overlay {
     display: none;
     position: fixed;
@@ -325,7 +335,7 @@ input { width: 70px; text-align: center; }
     <button class="theme-btn" onclick="toggleTheme()">🌙</button>
 </header>
 
-<!-- OROLOGIO -->
+<!-- OROLOGIO E CONTROLLI -->
 <div class="card">
     <div id="clock" class="clock">00:00:00</div>
     <div id="date" class="date"></div>
@@ -336,6 +346,12 @@ input { width: 70px; text-align: center; }
         <button id="pauseBtn" class="btn-pause" onclick="togglePause()">⏸️ PAUSA</button>
         <button id="resumeBtn" class="btn-resume" onclick="togglePause()">▶️ RIPRENDI</button>
         <button id="exitBtn" class="btn-exit" onclick="registerExit()">🔴 USCITA</button>
+    </div>
+
+    <!-- OPZIONI DIMENTICATO -->
+    <div class="forgot-buttons">
+        <button id="forgotEntryBtn" class="btn-forgot" onclick="openForgotModal('entry')">⚠️ Dimenticato Entrata</button>
+        <button id="forgotExitBtn" class="btn-forgot" onclick="openForgotModal('exit')">⚠️ Dimenticato Uscita</button>
     </div>
 
     <!-- CORREZIONI -->
@@ -390,14 +406,12 @@ input { width: 70px; text-align: center; }
 
 </div>
 
-<!-- MODALE PER SCELTA MESE ESPORTAZIONE CSV -->
+<!-- MODALE ESPORTAZIONE CSV -->
 <div id="exportModal" class="modal-overlay">
     <div class="modal">
         <h3 style="margin-top:0; font-size:18px;">📊 Esporta Mese CSV</h3>
-        <p style="font-size:14px; color:var(--muted);">Seleziona il mese che desideri scaricare:</p>
-        
+        <p style="font-size:14px; color:var(--muted);">Seleziona il mese da scaricare:</p>
         <select id="exportMonthSelect" style="width:100%; margin-bottom: 20px; font-weight:bold;"></select>
-
         <div style="display:flex; gap:10px; justify-content:flex-end;">
             <button class="danger" style="background:var(--muted);" onclick="closeExportModal()">Annulla</button>
             <button class="secondary" onclick="confirmExportCSV()">Scarica CSV</button>
@@ -405,18 +419,29 @@ input { width: 70px; text-align: center; }
     </div>
 </div>
 
-<!-- SCHERMATA SEPARATA PER MODIFICA E ELIMINAZIONE -->
+<!-- MODALE DIMENTICATO ENTRATA / USCITA -->
+<div id="forgotModal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="forgotTitle" style="margin-top:0; font-size:18px;">⚠️ Imposta Orario</h3>
+        <p id="forgotDesc" style="font-size:14px; color:var(--muted);">Seleziona l'orario di entrata:</p>
+        <input type="time" id="forgotTimeInput" style="width:100%; font-size:20px; padding:10px; margin-bottom:20px;">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="danger" style="background:var(--muted);" onclick="closeForgotModal()">Annulla</button>
+            <button class="secondary" onclick="confirmForgotTime()">Conferma</button>
+        </div>
+    </div>
+</div>
+
+<!-- SCHERMATA SEPARATA MODIFICA/ELIMINAZIONE -->
 <div id="manageView">
     <div class="container" style="padding-top:0;">
         <div class="manage-header">
             <h1 style="font-size:20px;">🛠️ Gestione & Modifica</h1>
             <button class="secondary" onclick="closeManageView()">⬅️ Torna Indietro</button>
         </div>
-
         <div style="display:flex; justify-content:flex-end; margin-bottom: 15px;">
             <button class="danger" onclick="clearHistory()">🗑️ Cancella Tutto lo Storico</button>
         </div>
-
         <div id="manageHistory"></div>
     </div>
 </div>
@@ -425,6 +450,7 @@ input { width: 70px; text-align: center; }
 let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let settings = JSON.parse(localStorage.getItem("workSettings") || "{}");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
+let forgotTypeAction = null;
 
 if (settings.normalHours !== undefined) {
     document.getElementById("normalHours").value = settings.normalHours;
@@ -521,6 +547,71 @@ function registerExit() {
     saveData();
     renderHistory();
     updateUI();
+}
+
+/* DIMENTICATO ENTRATA / USCITA */
+function openForgotModal(type) {
+    forgotTypeAction = type;
+    const timeInput = document.getElementById("forgotTimeInput");
+    const now = new Date();
+    timeInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    if (type === "entry") {
+        if (currentDay) return alert("Hai già una giornata aperta.");
+        if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
+        document.getElementById("forgotTitle").textContent = "⚠️ Dimenticato Entrata";
+        document.getElementById("forgotDesc").textContent = "A che ora sei entrato oggi?";
+    } else {
+        if (!currentDay) return alert("Non hai una giornata aperta.");
+        if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
+        document.getElementById("forgotTitle").textContent = "⚠️ Dimenticato Uscita";
+        document.getElementById("forgotDesc").textContent = "A che ora sei uscito oggi?";
+    }
+    document.getElementById("forgotModal").style.display = "flex";
+}
+
+function closeForgotModal() {
+    document.getElementById("forgotModal").style.display = "none";
+}
+
+function confirmForgotTime() {
+    const timeVal = document.getElementById("forgotTimeInput").value;
+    if (!timeVal) return alert("Inserisci un orario valido.");
+
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    const targetDate = cleanDate(new Date());
+    targetDate.setHours(hours, minutes, 0, 0);
+
+    if (forgotTypeAction === "entry") {
+        currentDay = { entry: targetDate.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+        saveData();
+        updateUI();
+    } else if (forgotTypeAction === "exit") {
+        if (targetDate <= new Date(currentDay.entry)) {
+            return alert("L'ora di uscita non può essere precedente o uguale all'ora di entrata!");
+        }
+        currentDay.exit = targetDate.toISOString();
+        currentDay.isClosed = true;
+
+        const entryDate = cleanDate(currentDay.entry);
+        records.unshift({
+            id: Date.now(),
+            date: getDateISO(entryDate),
+            dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+            entry: currentDay.entry,
+            exit: currentDay.exit,
+            workedMinutes: calculateWorkedMinutes(currentDay),
+            pauseMinutes: calculatePauseMinutes(currentDay),
+            overtimeMinutes: calculateOvertime(currentDay),
+            pauses: currentDay.pauses
+        });
+
+        currentDay = null;
+        saveData();
+        renderHistory();
+        updateUI();
+    }
+    closeForgotModal();
 }
 
 function calculateWorkedMinutes(day) {
@@ -883,17 +974,20 @@ function updateToday() {
 function updateStatus() {
     const s = document.getElementById("status");
     const e = document.getElementById("entryBtn"), p = document.getElementById("pauseBtn"), r = document.getElementById("resumeBtn"), x = document.getElementById("exitBtn");
+    const fe = document.getElementById("forgotEntryBtn"), fx = document.getElementById("forgotExitBtn");
 
     if (isTodayRecorded() && !currentDay) {
         s.innerHTML = "🔴 Giornata già registrata per oggi";
         s.className = "status off";
         e.disabled = true; p.disabled = true; r.disabled = true; x.disabled = true;
+        fe.disabled = true; fx.disabled = true;
         return;
     }
 
     if (!currentDay) {
         s.innerHTML = "⚪ Non sei al lavoro"; s.className = "status off";
         e.disabled = false; p.disabled = true; r.disabled = true; x.disabled = true;
+        fe.disabled = false; fx.disabled = true;
         return;
     }
     if (currentDay.paused) {
@@ -901,11 +995,13 @@ function updateStatus() {
         s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(cleanDate(last.start)) + "</strong>";
         s.className = "status pause";
         e.disabled = true; p.disabled = true; r.disabled = false; x.disabled = true;
+        fe.disabled = true; fx.disabled = true;
         return;
     }
     s.innerHTML = "🟢 Al lavoro dalle <strong>" + formatTime(cleanDate(currentDay.entry)) + "</strong>";
     s.className = "status work";
     e.disabled = true; p.disabled = false; r.disabled = true; x.disabled = false;
+    fe.disabled = true; fx.disabled = false;
 }
 
 function updateUI() { updateStatus(); updateToday(); renderLiveCorrection(); }
