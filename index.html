@@ -435,22 +435,7 @@ let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
-/* ARROTONDAMENTO REGOLA AZIENDALE (Tolleranza 5 Minuti su Quarti d'Ora) */
-function applyCompanyRounding(d) {
-    const date = new Date(d);
-    date.setSeconds(0, 0);
-    
-    const minutes = date.getMinutes();
-    const remainder = minutes % 15;
-
-    if (remainder <= 5) {
-        date.setMinutes(minutes - remainder);
-    } else {
-        date.setMinutes(minutes + (15 - remainder));
-    }
-    return date;
-}
-
+/* PULIZIA ORARIO: AZZERA SECONDI E MILLISECONDI PER SPACCATA PRECISIONE AI MINUTI */
 function cleanDate(d) {
     const date = new Date(d);
     date.setSeconds(0, 0);
@@ -484,7 +469,7 @@ function getMonthKey(d) {
 }
 function isWeekend(d) { const day = cleanDate(d).getDay(); return (day === 0 || day === 6); }
 function getNormalMinutes() {
-    return 8 * 60; // Fisso a 8 ore dal Lunedì al Venerdì
+    return 8 * 60; // 8 Ore dal Lunedì al Venerdì
 }
 
 function isTodayRecorded() {
@@ -502,22 +487,22 @@ function registerEntry() {
     if (currentDay) return alert("Hai già una giornata aperta.");
     if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
 
-    const roundedNow = applyCompanyRounding(new Date());
-    currentDay = { entry: roundedNow.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    const now = cleanDate(new Date());
+    currentDay = { entry: now.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
     saveData();
     updateUI();
 }
 
 function togglePause() {
     if (!currentDay) return alert("Prima devi registrare l'entrata.");
-    const roundedNow = applyCompanyRounding(new Date()).toISOString();
+    const now = cleanDate(new Date()).toISOString();
     if (!currentDay.paused) {
         currentDay.paused = true;
-        currentDay.pauses.push({ start: roundedNow, end: null });
+        currentDay.pauses.push({ start: now, end: null });
     } else {
         currentDay.paused = false;
         const last = currentDay.pauses[currentDay.pauses.length - 1];
-        if (last) last.end = roundedNow;
+        if (last) last.end = now;
     }
     saveData();
     updateUI();
@@ -527,7 +512,7 @@ function registerExit() {
     if (!currentDay) return alert("Non hai registrato l'entrata.");
     if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
     
-    currentDay.exit = applyCompanyRounding(new Date()).toISOString();
+    currentDay.exit = cleanDate(new Date()).toISOString();
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
@@ -553,8 +538,8 @@ function registerExit() {
 function openForgotModal(type) {
     forgotTypeAction = type;
     const timeInput = document.getElementById("forgotTimeInput");
-    const roundedNow = applyCompanyRounding(new Date());
-    timeInput.value = `${pad(roundedNow.getHours())}:${pad(roundedNow.getMinutes())}`;
+    const now = cleanDate(new Date());
+    timeInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
     if (type === "entry") {
         if (currentDay) return alert("Hai già una giornata aperta.");
@@ -579,7 +564,7 @@ function confirmForgotTime() {
     if (!timeVal) return alert("Inserisci un orario valido.");
 
     const [hours, minutes] = timeVal.split(":").map(Number);
-    const targetDate = applyCompanyRounding(new Date());
+    const targetDate = cleanDate(new Date());
     targetDate.setHours(hours, minutes, 0, 0);
 
     if (forgotTypeAction === "entry") {
