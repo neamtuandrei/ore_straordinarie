@@ -443,7 +443,9 @@ let forgotTypeAction = null;
    51 - 59 min -> +1h :00
 */
 function roundToQuarterHour(d) {
+    if (!d) return new Date();
     const date = new Date(d);
+    if (isNaN(date.getTime())) return new Date();
     const minutes = date.getMinutes();
     date.setSeconds(0, 0);
 
@@ -468,7 +470,12 @@ function cleanDate(d) {
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
-function formatTimeExact(d) { const date = new Date(d); return date.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function formatTimeExact(d) { 
+    if (!d) return "-";
+    const date = new Date(d); 
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); 
+}
 
 function getTimeInputValue(d) {
     const date = cleanDate(d);
@@ -657,7 +664,7 @@ function calculateWorkedMinutes(day) {
     const end = day.isClosed ? cleanDate(day.exit) : cleanDate(new Date());
     let total = 0, workStart = start;
 
-    for (const p of day.pauses) {
+    for (const p of (day.pauses || [])) {
         const pStart = cleanDate(p.start);
         total += Math.max(0, (pStart - workStart) / 60000);
         if (p.end) workStart = cleanDate(p.end);
@@ -668,29 +675,44 @@ function calculateWorkedMinutes(day) {
 }
 
 function calculateRawWorkedMinutes(day) {
-    if (!day || !day.entry) return 0;
-    const start = new Date(day.entryExact || day.entry);
-    const end = day.isClosed ? new Date(day.exitExact || day.exit) : new Date();
+    if (!day) return 0;
+    const entryIso = day.entryExact || day.entry;
+    const exitIso = day.exitExact || day.exit;
+    if (!entryIso) return 0;
+
+    const start = new Date(entryIso);
+    const end = day.isClosed ? (exitIso ? new Date(exitIso) : new Date()) : new Date();
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return calculateWorkedMinutes(day);
+
     let total = 0, workStart = start;
 
-    for (const p of day.pauses) {
+    for (const p of (day.pauses || [])) {
         const pStart = new Date(p.start);
-        total += Math.max(0, (pStart - workStart) / 60000);
-        if (p.end) workStart = new Date(p.end);
-        else return Math.round(total);
+        if (!isNaN(pStart.getTime())) {
+            total += Math.max(0, (pStart - workStart) / 60000);
+        }
+        if (p.end) {
+            const pEnd = new Date(p.end);
+            if (!isNaN(pEnd.getTime())) workStart = pEnd;
+        } else {
+            return Math.round(total);
+        }
     }
     total += Math.max(0, (end - workStart) / 60000);
     return Math.round(total);
 }
 
 function calculatePauseMinutes(day) {
-    if (!day) return 0;
+    if (!day || !day.pauses) return 0;
     let total = 0;
     for (const p of day.pauses) {
         if (!p.start) continue;
         const pStart = new Date(p.start);
         const end = p.end ? new Date(p.end) : new Date();
-        total += Math.max(0, (end - pStart) / 60000);
+        if (!isNaN(pStart.getTime()) && !isNaN(end.getTime())) {
+            total += Math.max(0, (end - pStart) / 60000);
+        }
     }
     return Math.round(total);
 }
@@ -877,7 +899,7 @@ function renderManageHistory() {
                 ${group.records.map(r => {
                     const otClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
                     let pausesHTML = "";
-                    r.pauses.forEach((p, idx) => {
+                    (r.pauses || []).forEach((p, idx) => {
                         pausesHTML += `
                             <div class="pause-item">
                                 <span class="small">Pausa ${idx + 1} inizio:</span>${historyInputManual(r, "pauseStart", idx, p.start)}
@@ -912,7 +934,7 @@ function renderManageHistory() {
                                     </div>
                                 </div>
                             </div>
-                            ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
+                            ${(r.pauses && r.pauses.length) ? `<div class="pause-list">${pausesHTML}</div>` : ""}
                         </div>
                     `;
                 }).join("")}
@@ -943,7 +965,7 @@ function closeManageView() {
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
-/* ESPORTAZIONE CSV CON DETTAGLI PAUSA E TOTALI */
+/* ESPORTAZIONE CSV STRICT SUL MESE SELEZIONATO */
 function openExportModal() {
     if (records.length === 0) return alert("Non ci sono dati da esportare.");
     
@@ -969,6 +991,7 @@ function confirmExportCSV() {
     const selectedKey = document.getElementById("exportMonthSelect").value;
     if (!selectedKey) return;
 
+    // FILTRUL STRICT PE LUNA SELECTIONATA
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
@@ -992,8 +1015,8 @@ function confirmExportCSV() {
         const pStartStr = pauseStarts.join(" | ") || "-";
         const pEndStr = pauseEnds.join(" | ") || "-";
 
-        const rawWorked = r.rawWorkedMinutes || calculateRawWorkedMinutes(r);
-        const roundedWorked = r.workedMinutes || calculateWorkedMinutes(r);
+        const rawWorked = calculateRawWorkedMinutes(r);
+        const roundedWorked = calculateWorkedMinutes(r);
 
         totalRawMinutes += rawWorked;
         totalRoundedMinutes += roundedWorked;
@@ -1002,7 +1025,7 @@ function confirmExportCSV() {
         csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${pStartStr};${pEndStr};${r.pauseMinutes};${formatDuration(rawWorked)};${formatDuration(roundedWorked)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
 
-    // RIGA RIEPILOGO FINALE IN BASSO AL CSV
+    // SUMAR FINALE NUMAI PE LUNA SELECTATĂ
     csv += `\n`;
     csv += `;;;;;;Riepilogo Mese:;Totale Ore Reali;Totale Ore Arrotondate;Totale Straordinario\n`;
     csv += `;;;;;;;${formatDuration(totalRawMinutes)};${formatDuration(totalRoundedMinutes)};${formatSignedDuration(totalOvertimeMinutes)}\n`;
