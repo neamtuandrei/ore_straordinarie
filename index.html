@@ -5,6 +5,16 @@ function confirmExportCSV() {
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
+    // Helper per formattare e sanitizzare le celle del CSV (evita problemi con ';' e complesse stringhe)
+    const escapeCsv = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val);
+        if (str.includes(";") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
     // Intestazione pulita e semplificata
     let csv = "Data;Giorno;Entrata;Inizio Pausa;Fine Pausa;Uscita;Ore Lavorate;Straordinario;Straordinario Arrotondato\n";
 
@@ -34,19 +44,41 @@ function confirmExportCSV() {
         totalRawOvertimeMinutes += rawOvertime;
         totalRoundedOvertimeMinutes += roundedOvertime;
 
-        // Visualizza l'orario reale di entrata/uscita, le ore reali lavorate, lo straordinario reale e quello arrotondato
-        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTimeExact(r.entryExact || r.entry)};${pStartStr};${pEndStr};${formatTimeExact(r.exitExact || r.exit)};${formatDuration(rawWorked)};${formatSignedDuration(rawOvertime)};${formatSignedDuration(roundedOvertime)}\n`;
+        // Costruzione della riga per il CSV
+        const row = [
+            formatItalianDate(r.date),
+            r.dayName,
+            formatTimeExact(r.entryExact || r.entry),
+            pStartStr,
+            pEndStr,
+            formatTimeExact(r.exitExact || r.exit),
+            formatDuration(rawWorked),
+            formatSignedDuration(rawOvertime),
+            formatSignedDuration(roundedOvertime)
+        ].map(escapeCsv).join(";");
+
+        csv += row + "\n";
     });
 
     // Riga di riepilogo finale
     csv += `\n`;
-    csv += `;;;;;Totale Mese:;${formatDuration(totalRawMinutes)};${formatSignedDuration(totalRawOvertimeMinutes)};${formatSignedDuration(totalRoundedOvertimeMinutes)}\n`;
+    csv += `;;;;;Totale Mese:;${escapeCsv(formatDuration(totalRawMinutes))};${escapeCsv(formatSignedDuration(totalRawOvertimeMinutes))};${escapeCsv(formatSignedDuration(totalRoundedOvertimeMinutes))}\n`;
 
+    // Creazione e download del file CSV
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    
+    a.href = url;
     a.download = `ore_lavoro_${selectedKey}.csv`;
+    
+    // Append al DOM per assicurare la compatibilità cross-browser (es. Firefox)
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+
+    // Pulizia dell'URL per evitare leak di memoria
+    URL.revokeObjectURL(url);
 
     closeExportModal();
 }
