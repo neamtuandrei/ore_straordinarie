@@ -435,15 +435,41 @@ let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
-/* PULIZIA ORARIO: AZZERA SECONDI E MILLISECONDI PER PRECISIONE AI MINUTI */
-function cleanDate(d) {
+/* REGOLA DI ARROTONDAMENTO AL QUARTO D'ORA (15 MIN)
+   00 - 05 min -> :00
+   06 - 20 min -> :15
+   21 - 35 min -> :30
+   36 - 50 min -> :45
+   51 - 59 min -> +1h :00
+*/
+function roundToQuarterHour(d) {
     const date = new Date(d);
+    const minutes = date.getMinutes();
     date.setSeconds(0, 0);
+
+    if (minutes <= 5) {
+        date.setMinutes(0);
+    } else if (minutes <= 20) {
+        date.setMinutes(15);
+    } else if (minutes <= 35) {
+        date.setMinutes(30);
+    } else if (minutes <= 50) {
+        date.setMinutes(45);
+    } else {
+        date.setHours(date.getHours() + 1);
+        date.setMinutes(0);
+    }
     return date;
+}
+
+function cleanDate(d) {
+    return roundToQuarterHour(d);
 }
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function formatTimeExact(d) { const date = new Date(d); return date.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+
 function getTimeInputValue(d) {
     const date = cleanDate(d);
     return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -487,15 +513,23 @@ function registerEntry() {
     if (currentDay) return alert("Hai già una giornata aperta.");
     if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
 
-    const now = cleanDate(new Date());
-    currentDay = { entry: now.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    const now = new Date();
+    currentDay = { 
+        entryExact: now.toISOString(),
+        entry: roundToQuarterHour(now).toISOString(), 
+        exit: null, 
+        exitExact: null,
+        paused: false, 
+        isClosed: false, 
+        pauses: [] 
+    };
     saveData();
     updateUI();
 }
 
 function togglePause() {
     if (!currentDay) return alert("Prima devi registrare l'entrata.");
-    const now = cleanDate(new Date()).toISOString();
+    const now = new Date().toISOString();
     if (!currentDay.paused) {
         currentDay.paused = true;
         currentDay.pauses.push({ start: now, end: null });
@@ -512,7 +546,9 @@ function registerExit() {
     if (!currentDay) return alert("Non hai registrato l'entrata.");
     if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
     
-    currentDay.exit = cleanDate(new Date()).toISOString();
+    const now = new Date();
+    currentDay.exitExact = now.toISOString();
+    currentDay.exit = roundToQuarterHour(now).toISOString();
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
@@ -520,9 +556,12 @@ function registerExit() {
         id: Date.now(),
         date: getDateISO(entryDate),
         dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+        entryExact: currentDay.entryExact || currentDay.entry,
         entry: currentDay.entry,
+        exitExact: currentDay.exitExact || currentDay.exit,
         exit: currentDay.exit,
         workedMinutes: calculateWorkedMinutes(currentDay),
+        rawWorkedMinutes: calculateRawWorkedMinutes(currentDay),
         pauseMinutes: calculatePauseMinutes(currentDay),
         overtimeMinutes: calculateOvertime(currentDay),
         pauses: currentDay.pauses
@@ -564,18 +603,28 @@ function confirmForgotTime() {
     if (!timeVal) return alert("Inserisci un orario valido.");
 
     const [hours, minutes] = timeVal.split(":").map(Number);
-    const targetDate = cleanDate(new Date());
+    const targetDate = new Date();
     targetDate.setHours(hours, minutes, 0, 0);
+    const roundedDate = roundToQuarterHour(targetDate);
 
     if (forgotTypeAction === "entry") {
-        currentDay = { entry: targetDate.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+        currentDay = { 
+            entryExact: targetDate.toISOString(), 
+            entry: roundedDate.toISOString(), 
+            exit: null, 
+            exitExact: null, 
+            paused: false, 
+            isClosed: false, 
+            pauses: [] 
+        };
         saveData();
         updateUI();
     } else if (forgotTypeAction === "exit") {
-        if (targetDate <= new Date(currentDay.entry)) {
+        if (roundedDate <= new Date(currentDay.entry)) {
             return alert("L'ora di uscita non può essere precedente o uguale all'ora di entrata!");
         }
-        currentDay.exit = targetDate.toISOString();
+        currentDay.exitExact = targetDate.toISOString();
+        currentDay.exit = roundedDate.toISOString();
         currentDay.isClosed = true;
 
         const entryDate = cleanDate(currentDay.entry);
@@ -583,9 +632,12 @@ function confirmForgotTime() {
             id: Date.now(),
             date: getDateISO(entryDate),
             dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+            entryExact: currentDay.entryExact || currentDay.entry,
             entry: currentDay.entry,
+            exitExact: currentDay.exitExact || currentDay.exit,
             exit: currentDay.exit,
             workedMinutes: calculateWorkedMinutes(currentDay),
+            rawWorkedMinutes: calculateRawWorkedMinutes(currentDay),
             pauseMinutes: calculatePauseMinutes(currentDay),
             overtimeMinutes: calculateOvertime(currentDay),
             pauses: currentDay.pauses
@@ -615,13 +667,29 @@ function calculateWorkedMinutes(day) {
     return Math.round(total);
 }
 
+function calculateRawWorkedMinutes(day) {
+    if (!day || !day.entry) return 0;
+    const start = new Date(day.entryExact || day.entry);
+    const end = day.isClosed ? new Date(day.exitExact || day.exit) : new Date();
+    let total = 0, workStart = start;
+
+    for (const p of day.pauses) {
+        const pStart = new Date(p.start);
+        total += Math.max(0, (pStart - workStart) / 60000);
+        if (p.end) workStart = new Date(p.end);
+        else return Math.round(total);
+    }
+    total += Math.max(0, (end - workStart) / 60000);
+    return Math.round(total);
+}
+
 function calculatePauseMinutes(day) {
     if (!day) return 0;
     let total = 0;
     for (const p of day.pauses) {
         if (!p.start) continue;
-        const pStart = cleanDate(p.start);
-        const end = p.end ? cleanDate(p.end) : cleanDate(new Date());
+        const pStart = new Date(p.start);
+        const end = p.end ? new Date(p.end) : new Date();
         total += Math.max(0, (end - pStart) / 60000);
     }
     return Math.round(total);
@@ -640,12 +708,17 @@ function updateLiveTimeManual(type, index, timeVal) {
     const [hours, minutes] = timeVal.split(":").map(Number);
     
     let baseIso = type === "entry" ? currentDay.entry : currentDay.pauses[index][type === "pauseStart" ? "start" : "end"];
-    let d = cleanDate(baseIso);
+    let d = new Date(baseIso);
     d.setHours(hours, minutes, 0, 0);
 
-    if (type === "entry") currentDay.entry = d.toISOString();
-    else if (type === "pauseStart") currentDay.pauses[index].start = d.toISOString();
-    else if (type === "pauseEnd") currentDay.pauses[index].end = d.toISOString();
+    if (type === "entry") {
+        currentDay.entryExact = d.toISOString();
+        currentDay.entry = roundToQuarterHour(d).toISOString();
+    } else if (type === "pauseStart") {
+        currentDay.pauses[index].start = d.toISOString();
+    } else if (type === "pauseEnd") {
+        currentDay.pauses[index].end = d.toISOString();
+    }
 
     saveData();
     updateToday();
@@ -657,16 +730,24 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
 
     const [hours, minutes] = timeVal.split(":").map(Number);
     let baseIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
-    let d = cleanDate(baseIso);
+    let d = new Date(baseIso);
     d.setHours(hours, minutes, 0, 0);
 
-    if (type === "entry") record.entry = d.toISOString();
-    else if (type === "exit") record.exit = d.toISOString();
-    else if (type === "pauseStart") record.pauses[index].start = d.toISOString();
-    else if (type === "pauseEnd") record.pauses[index].end = d.toISOString();
+    if (type === "entry") {
+        record.entryExact = d.toISOString();
+        record.entry = roundToQuarterHour(d).toISOString();
+    } else if (type === "exit") {
+        record.exitExact = d.toISOString();
+        record.exit = roundToQuarterHour(d).toISOString();
+    } else if (type === "pauseStart") {
+        record.pauses[index].start = d.toISOString();
+    } else if (type === "pauseEnd") {
+        record.pauses[index].end = d.toISOString();
+    }
 
-    const tempDay = { entry: record.entry, exit: record.exit, pauses: record.pauses, paused: false, isClosed: true };
+    const tempDay = { entryExact: record.entryExact, entry: record.entry, exitExact: record.exitExact, exit: record.exit, pauses: record.pauses, paused: false, isClosed: true };
     record.workedMinutes = calculateWorkedMinutes(tempDay);
+    record.rawWorkedMinutes = calculateRawWorkedMinutes(tempDay);
     record.pauseMinutes = calculatePauseMinutes(tempDay);
     record.overtimeMinutes = calculateOvertime(tempDay);
 
@@ -695,8 +776,8 @@ function renderLiveCorrection() {
 
     let html = timeControlManual("Entrata", cleanDate(currentDay.entry), "entry", null);
     currentDay.pauses.forEach((p, idx) => {
-        html += timeControlManual("Pausa " + (idx + 1) + " inizio", cleanDate(p.start), "pauseStart", idx);
-        if (p.end) html += timeControlManual("Pausa " + (idx + 1) + " fine", cleanDate(p.end), "pauseEnd", idx);
+        html += timeControlManual("Pausa " + (idx + 1) + " inizio", new Date(p.start), "pauseStart", idx);
+        if (p.end) html += timeControlManual("Pausa " + (idx + 1) + " fine", new Date(p.end), "pauseEnd", idx);
     });
     times.innerHTML = html;
 }
@@ -799,8 +880,7 @@ function renderManageHistory() {
                     r.pauses.forEach((p, idx) => {
                         pausesHTML += `
                             <div class="pause-item">
-                                <span class="small">Pausa ${idx + 1} inizio:</span>
-                                ${historyInputManual(r, "pauseStart", idx, p.start)}
+                                <span class="small">Pausa ${idx + 1} inizio:</span>${historyInputManual(r, "pauseStart", idx, p.start)}
                                 <span class="small">fine:</span>
                                 ${p.end ? historyInputManual(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
                             </div>
@@ -843,7 +923,7 @@ function renderManageHistory() {
 }
 
 function historyInputManual(record, type, index, iso) {
-    const date = cleanDate(iso);
+    const date = new Date(iso);
     const idx = index === null ? "null" : index;
     const val = getTimeInputValue(date);
     return `<input type="time" class="time-input-manual" value="${val}" onchange="updateRecordTimeManual(${record.id}, '${type}', ${idx}, this.value, this)">`;
@@ -863,7 +943,7 @@ function closeManageView() {
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
-/* ESPORTAZIONE CSV CON SCELTA MESE */
+/* ESPORTAZIONE CSV CON DETTAGLI PAUSA E TOTALI */
 function openExportModal() {
     if (records.length === 0) return alert("Non ci sono dati da esportare.");
     
@@ -892,15 +972,45 @@ function confirmExportCSV() {
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
-    let csv = "Data;Giorno;Entrata;Uscita;Pausa Totale (min);Ore Lavorate;Straordinario\n";
+    let csv = "Data;Giorno;Entrata Arrotondata;Uscita Arrotondata;Inizio Pausa;Fine Pausa;Durata Pausa (min);Ore Lavorate (Reali);Ore Lavorate (Arrotondate);Straordinario\n";
+
+    let totalRawMinutes = 0;
+    let totalRoundedMinutes = 0;
+    let totalOvertimeMinutes = 0;
+
     filteredRecords.forEach(r => {
-        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
+        let pauseStarts = [];
+        let pauseEnds = [];
+
+        if (r.pauses && r.pauses.length > 0) {
+            r.pauses.forEach(p => {
+                if (p.start) pauseStarts.push(formatTimeExact(p.start));
+                if (p.end) pauseEnds.push(formatTimeExact(p.end));
+            });
+        }
+
+        const pStartStr = pauseStarts.join(" | ") || "-";
+        const pEndStr = pauseEnds.join(" | ") || "-";
+
+        const rawWorked = r.rawWorkedMinutes || calculateRawWorkedMinutes(r);
+        const roundedWorked = r.workedMinutes || calculateWorkedMinutes(r);
+
+        totalRawMinutes += rawWorked;
+        totalRoundedMinutes += roundedWorked;
+        totalOvertimeMinutes += r.overtimeMinutes;
+
+        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${pStartStr};${pEndStr};${r.pauseMinutes};${formatDuration(rawWorked)};${formatDuration(roundedWorked)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
+
+    // RIGA RIEPILOGO FINALE IN BASSO AL CSV
+    csv += `\n`;
+    csv += `;;;;;;Riepilogo Mese:;Totale Ore Reali;Totale Ore Arrotondate;Totale Straordinario\n`;
+    csv += `;;;;;;;${formatDuration(totalRawMinutes)};${formatDuration(totalRoundedMinutes)};${formatSignedDuration(totalOvertimeMinutes)}\n`;
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `ore_straordinarie_${selectedKey}.csv`;
+    a.download = `ore_lavoro_${selectedKey}.csv`;
     a.click();
 
     closeExportModal();
@@ -973,7 +1083,7 @@ function updateStatus() {
     }
     if (currentDay.paused) {
         const last = currentDay.pauses[currentDay.pauses.length - 1];
-        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(cleanDate(last.start)) + "</strong>";
+        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTimeExact(last.start) + "</strong>";
         s.className = "status pause";
         e.disabled = true; p.disabled = true; r.disabled = false; x.disabled = true;
         fe.disabled = true; fx.disabled = true;
