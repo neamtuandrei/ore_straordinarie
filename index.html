@@ -674,40 +674,48 @@ function calculateWorkedMinutes(day) {
     return Math.round(total);
 }
 
-/* CALCUL REPARAT PENTRU ORELE REALE (PREVINE ERORILE PE DATI VECHI) */
+/* CALCULUL CORECT INDIVIDUAL PER ZI PENTRU ORELE REALE (EXACTE) */
 function calculateRawWorkedMinutes(day) {
     if (!day) return 0;
     
-    // Daca nu exista ora exacta salvata, foloseşte ora normala (previne eroarea din 1970)
-    const entryIso = day.entryExact && day.entryExact !== "undefined" ? day.entryExact : day.entry;
-    const exitIso = day.exitExact && day.exitExact !== "undefined" ? day.exitExact : day.exit;
+    // Luam ora de intrare si de iesire STRICT ale zilei respective
+    const entryIso = day.entryExact || day.entry;
+    const exitIso = day.exitExact || day.exit;
     
-    if (!entryIso) return 0;
+    if (!entryIso || !exitIso) return calculateWorkedMinutes(day);
 
     const start = new Date(entryIso);
-    const end = (day.isClosed || exitIso) ? new Date(exitIso) : new Date();
+    const end = new Date(exitIso);
     
+    // Verificare sa nu existe date invalide sau diferente mari
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return calculateWorkedMinutes(day);
     }
 
-    let total = 0, workStart = start;
+    // Calculam diferenta totala in minute pentru ZIUA RESPECTIVA
+    let diffMs = end - start;
+    let totalMinutes = Math.max(0, diffMs / 60000);
 
+    // Scadem pauzele zilei respectivi
+    let pauseMs = 0;
     for (const p of (day.pauses || [])) {
-        if (!p.start) continue;
-        const pStart = new Date(p.start);
-        if (!isNaN(pStart.getTime())) {
-            total += Math.max(0, (pStart - workStart) / 60000);
-        }
-        if (p.end) {
+        if (p.start && p.end) {
+            const pStart = new Date(p.start);
             const pEnd = new Date(p.end);
-            if (!isNaN(pEnd.getTime())) workStart = pEnd;
-        } else {
-            return Math.round(total);
+            if (!isNaN(pStart.getTime()) && !isNaN(pEnd.getTime())) {
+                pauseMs += Math.max(0, pEnd - pStart);
+            }
         }
     }
-    total += Math.max(0, (end - workStart) / 60000);
-    return Math.round(total);
+
+    let netMinutes = Math.max(0, (diffMs - pauseMs) / 60000);
+    
+    // Daca diferenta este anormala (ex. mai mare de 24 ore), revenim la orele calculate standard
+    if (netMinutes > 24 * 60) {
+        return calculateWorkedMinutes(day);
+    }
+
+    return Math.round(netMinutes);
 }
 
 function calculatePauseMinutes(day) {
