@@ -1,3 +1,920 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Andrei-Redai srl</title>
+
+<!-- Tag PWA iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Andrei-Redai">
+
+<style>
+* { box-sizing: border-box; }
+
+:root {
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --green: #16a34a;
+    --red: #dc2626;
+    --orange: #ea580c;
+    --blue: #2563eb;
+    --purple: #7c3aed;
+}
+
+body.dark {
+    --bg: #111827;
+    --card: #1f2937;
+    --text: #f9fafb;
+    --muted: #9ca3af;
+    --border: #374151;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: .2s;
+    padding-bottom: 30px;
+    padding-top: env(safe-area-inset-top, 20px);
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 16px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    margin-top: 10px;
+    position: relative;
+    z-index: 10;
+}
+
+h1 { margin: 0; font-size: 22px; }
+h2 { margin-top: 0; font-size: 18px; }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.03);
+}
+
+button {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: .15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:active { transform: scale(0.98); }
+button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+.theme-btn {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 18px;
+    padding: 8px 14px;
+}
+
+.clock { text-align: center; font-size: 42px; font-weight: bold; margin: 5px 0; }
+.date { text-align: center; color: var(--muted); margin-bottom: 15px; text-transform: capitalize; font-size: 14px; }
+
+.status { text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 16px; }
+.status.work { color: var(--green); }
+.status.pause { color: var(--orange); }
+.status.off { color: var(--muted); }
+
+.main-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.forgot-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+}
+
+.btn-entry { background: var(--green); color: white; padding: 16px; font-size: 18px; }
+.btn-pause { background: var(--orange); color: white; padding: 16px; font-size: 18px; }
+.btn-resume { background: var(--blue); color: white; padding: 16px; font-size: 18px; }
+.btn-exit { background: var(--red); color: white; padding: 16px; font-size: 18px; }
+.btn-forgot { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 10px; }
+
+.time-correction {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 15px;
+}
+
+.time-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.time-label {
+    color: var(--muted);
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.time-input-manual {
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.stat {
+    text-align: center;
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.stat-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.stat-value { font-size: 18px; font-weight: bold; }
+
+.overtime { color: var(--green); }
+.negative { color: var(--red); }
+
+select {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.history-actions { display: flex; gap: 6px; }
+.secondary { background: var(--blue); color: white; font-size: 13px; padding: 8px 12px; }
+.danger { background: var(--red); color: white; font-size: 13px; padding: 8px 12px; }
+.purple-btn { background: var(--purple); color: white; font-size: 13px; padding: 8px 12px; }
+
+.month-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.month-header {
+    background: rgba(0,0,0,0.03);
+    padding: 10px 14px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+}
+
+.history-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+}
+.history-item:last-child { border-bottom: none; }
+
+.history-top {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.history-row-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: rgba(0,0,0,0.02);
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.history-details-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0,0,0,0.02);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.history-date { font-weight: bold; font-size: 14px; }
+.small { color: var(--muted); font-size: 11px; }
+
+.delete-btn {
+    background: transparent;
+    color: var(--red);
+    padding: 4px 8px;
+    font-size: 16px;
+}
+
+.pause-list { margin-top: 8px; }
+.pause-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px dashed var(--border);
+    font-size: 13px;
+}
+
+.empty { text-align: center; color: var(--muted); padding: 20px; }
+
+/* MODALI E OVERLAY */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+/* VISTA PAGINA GESTIONE SEPARATA */
+#manageView {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
+}
+
+.manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 600px) {
+    .stats { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+
+<body>
+
+<!-- SCHERMATA PRINCIPALE -->
+<div id="mainView" class="container">
+
+<header>
+    <h1>⏱️ Andrei-Redai srl</h1>
+    <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+</header>
+
+<!-- OROLOGIO E CONTROLLI -->
+<div class="card">
+    <div id="clock" class="clock">00:00:00</div>
+    <div id="date" class="date"></div>
+    <div id="status" class="status off">⚪ Non sei al lavoro</div>
+
+    <div class="main-buttons">
+        <button id="entryBtn" class="btn-entry" onclick="registerEntry()">🟢 ENTRATA</button>
+        <button id="pauseBtn" class="btn-pause" onclick="togglePause()">⏸️ PAUSA</button>
+        <button id="resumeBtn" class="btn-resume" onclick="togglePause()">▶️ RIPRENDI</button>
+        <button id="exitBtn" class="btn-exit" onclick="registerExit()">🔴 USCITA</button>
+    </div>
+
+    <!-- OPZIONI DIMENTICATO -->
+    <div class="forgot-buttons">
+        <button id="forgotEntryBtn" class="btn-forgot" onclick="openForgotModal('entry')">⚠️ Dimenticato Entrata</button>
+        <button id="forgotExitBtn" class="btn-forgot" onclick="openForgotModal('exit')">⚠️ Dimenticato Uscita</button>
+    </div>
+
+    <!-- CORREZIONI GIORNATA CORRENTE -->
+    <div id="liveCorrection" class="time-correction" style="display:none">
+        <h3 style="text-align:center; font-size:15px; margin:0 0 10px 0;">🛠️ Modifica orari di oggi</h3>
+        <div id="liveTimes"></div>
+    </div>
+</div>
+
+<!-- STATISTICHE MENSILI -->
+<div class="card">
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Lavorate oggi</div>
+            <div id="todayWorked" class="stat-value">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Pausa oggi</div>
+            <div id="todayPause" class="stat-value">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Straordinario oggi</div>
+            <div id="todayOvertime" class="stat-value overtime">0h 00m</div>
+        </div>
+        <div class="stat">
+            <div id="monthLabel" class="stat-label">Straordinario Mese</div>
+            <div id="monthOvertime" class="stat-value overtime">0h 00m</div>
+        </div>
+    </div>
+</div>
+
+<!-- STORICO PRINCIPALE -->
+<div class="card">
+    <div class="history-header">
+        <h2>📅 Storico Mensile</h2>
+        <div class="history-actions">
+            <button class="secondary" onclick="openExportModal()">📊 CSV</button>
+            <button class="purple-btn" onclick="openManageView()">⚙️ Modifica</button>
+        </div>
+    </div>
+    <div id="history"></div>
+</div>
+
+</div>
+
+<!-- MODALE ESPORTAZIONE CSV -->
+<div id="exportModal" class="modal-overlay">
+    <div class="modal">
+        <h3 style="margin-top:0; font-size:18px;">📊 Esporta Mese CSV</h3>
+        <p style="font-size:14px; color:var(--muted);">Seleziona il mese da scaricare:</p>
+        <select id="exportMonthSelect" style="width:100%; margin-bottom: 20px; font-weight:bold;"></select>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="danger" style="background:var(--muted);" onclick="closeExportModal()">Annulla</button>
+            <button class="secondary" onclick="confirmExportCSV()">Scarica CSV</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODALE DIMENTICATO ENTRATA / USCITA -->
+<div id="forgotModal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="forgotTitle" style="margin-top:0; font-size:18px;">⚠️ Imposta Orario</h3>
+        <p id="forgotDesc" style="font-size:14px; color:var(--muted);">Seleziona l'orario:</p>
+        <input type="time" id="forgotTimeInput" style="width:100%; font-size:20px; padding:10px; margin-bottom:20px;">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="danger" style="background:var(--muted);" onclick="closeForgotModal()">Annulla</button>
+            <button class="secondary" onclick="confirmForgotTime()">Conferma</button>
+        </div>
+    </div>
+</div>
+
+<!-- SCHERMATA SEPARATA MODIFICA/ELIMINAZIONE -->
+<div id="manageView">
+    <div class="container" style="padding-top:0;">
+        <div class="manage-header">
+            <h1 style="font-size:20px;">🛠️ Gestione & Modifica</h1>
+            <button class="secondary" onclick="closeManageView()">⬅️ Torna Indietro</button>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-bottom: 15px;">
+            <button class="danger" onclick="clearHistory()">🗑️ Cancella Tutto lo Storico</button>
+        </div>
+        <div id="manageHistory"></div>
+    </div>
+</div>
+
+<script>
+let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
+let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
+let forgotTypeAction = null;
+
+/* REGOLA ARROTONDAMENTO ENTRATA / FINE PAUSA (Soglia 5 Minuti) */
+function roundEntryTime(d) {
+    const date = cleanDate(d);
+    const m = date.getMinutes();
+    const mod = m % 15;
+    
+    if (mod <= 5) {
+        date.setMinutes(m - mod);
+    } else {
+        date.setMinutes(m + (15 - mod));
+    }
+    return date;
+}
+
+/* REGOLA ARROTONDAMENTO USCITA / INIZIO PAUSA (Blocchi da 15 minuti) */
+function roundExitTime(d) {
+    const date = cleanDate(d);
+    const m = date.getMinutes();
+    const mod = m % 15;
+    
+    date.setMinutes(m - mod);
+    return date;
+}
+
+function cleanDate(d) {
+    const date = new Date(d);
+    date.setSeconds(0, 0);
+    return date;
+}
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
+function getTimeInputValue(d) {
+    const date = cleanDate(d);
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatDuration(m) {
+    m = Math.max(0, Math.round(m));
+    return Math.floor(m / 60) + "h " + pad(m % 60) + "m";
+}
+function formatSignedDuration(m) {
+    m = Math.round(m);
+    if (m > 0) return "+" + formatDuration(m);
+    if (m < 0) return "-" + formatDuration(Math.abs(m));
+    return "0h 00m";
+}
+function getDateISO(d) { 
+    const date = cleanDate(d);
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()); 
+}
+function getMonthKey(d) { 
+    const date = cleanDate(d);
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1); 
+}
+function isWeekend(d) { const day = cleanDate(d).getDay(); return (day === 0 || day === 6); }
+function getNormalMinutes() {
+    return 8 * 60; // 8 Ore dal Lunedì al Venerdì
+}
+
+function isTodayRecorded() {
+    const todayISO = getDateISO(new Date());
+    return records.some(r => r.date === todayISO);
+}
+
+function saveData() {
+    localStorage.setItem("workRecords", JSON.stringify(records));
+    if (currentDay) localStorage.setItem("currentDay", JSON.stringify(currentDay));
+    else localStorage.removeItem("currentDay");
+}
+
+function registerEntry() {
+    if (currentDay) return alert("Hai già una giornata aperta.");
+    if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
+
+    const now = roundEntryTime(new Date());
+    currentDay = { entry: now.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+    saveData();
+    updateUI();
+}
+
+function togglePause() {
+    if (!currentDay) return alert("Prima devi registrare l'entrata.");
+    
+    if (!currentDay.paused) {
+        const now = roundExitTime(new Date()).toISOString();
+        currentDay.paused = true;
+        currentDay.pauses.push({ start: now, end: null });
+    } else {
+        const now = roundEntryTime(new Date()).toISOString();
+        currentDay.paused = false;
+        const last = currentDay.pauses[currentDay.pauses.length - 1];
+        if (last) last.end = now;
+    }
+    saveData();
+    updateUI();
+}
+
+function registerExit() {
+    if (!currentDay) return alert("Non hai registrato l'entrata.");
+    if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
+    
+    currentDay.exit = roundExitTime(new Date()).toISOString();
+    currentDay.isClosed = true;
+
+    const entryDate = cleanDate(currentDay.entry);
+    records.unshift({
+        id: Date.now(),
+        date: getDateISO(entryDate),
+        dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+        entry: currentDay.entry,
+        exit: currentDay.exit,
+        workedMinutes: calculateWorkedMinutes(currentDay),
+        pauseMinutes: calculatePauseMinutes(currentDay),
+        overtimeMinutes: calculateOvertime(currentDay),
+        pauses: currentDay.pauses
+    });
+
+    currentDay = null;
+    saveData();
+    renderHistory();
+    updateUI();
+}
+
+/* DIMENTICATO ENTRATA / USCITA */
+function openForgotModal(type) {
+    forgotTypeAction = type;
+    const timeInput = document.getElementById("forgotTimeInput");
+    const now = cleanDate(new Date());
+    timeInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    if (type === "entry") {
+        if (currentDay) return alert("Hai già una giornata aperta.");
+        if (isTodayRecorded()) return alert("Hai già registrato la giornata di oggi!");
+        document.getElementById("forgotTitle").textContent = "⚠️ Dimenticato Entrata";
+        document.getElementById("forgotDesc").textContent = "A che ora sei entrato oggi?";
+    } else {
+        if (!currentDay) return alert("Non hai una giornata aperta.");
+        if (currentDay.paused) return alert("Sei in pausa. Premi RIPRENDI prima di uscire.");
+        document.getElementById("forgotTitle").textContent = "⚠️ Dimenticato Uscita";
+        document.getElementById("forgotDesc").textContent = "A che ora sei uscito oggi?";
+    }
+    document.getElementById("forgotModal").style.display = "flex";
+}
+
+function closeForgotModal() {
+    document.getElementById("forgotModal").style.display = "none";
+}
+
+function confirmForgotTime() {
+    const timeVal = document.getElementById("forgotTimeInput").value;
+    if (!timeVal) return alert("Inserisci un orario valido.");
+
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    const rawDate = cleanDate(new Date());
+    rawDate.setHours(hours, minutes, 0, 0);
+
+    if (forgotTypeAction === "entry") {
+        const targetDate = roundEntryTime(rawDate);
+        currentDay = { entry: targetDate.toISOString(), exit: null, paused: false, isClosed: false, pauses: [] };
+        saveData();
+        updateUI();
+    } else if (forgotTypeAction === "exit") {
+        const targetDate = roundExitTime(rawDate);
+        if (targetDate <= new Date(currentDay.entry)) {
+            return alert("L'ora di uscita non può essere precedente o uguale all'ora di entrata!");
+        }
+        currentDay.exit = targetDate.toISOString();
+        currentDay.isClosed = true;
+
+        const entryDate = cleanDate(currentDay.entry);
+        records.unshift({
+            id: Date.now(),
+            date: getDateISO(entryDate),
+            dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
+            entry: currentDay.entry,
+            exit: currentDay.exit,
+            workedMinutes: calculateWorkedMinutes(currentDay),
+            pauseMinutes: calculatePauseMinutes(currentDay),
+            overtimeMinutes: calculateOvertime(currentDay),
+            pauses: currentDay.pauses
+        });
+
+        currentDay = null;
+        saveData();
+        renderHistory();
+        updateUI();
+    }
+    closeForgotModal();
+}
+
+function calculateWorkedMinutes(day) {
+    if (!day || !day.entry) return 0;
+    const start = cleanDate(day.entry);
+    const end = day.isClosed ? cleanDate(day.exit) : roundExitTime(new Date());
+    let total = 0, workStart = start;
+
+    for (const p of day.pauses) {
+        const pStart = cleanDate(p.start);
+        total += Math.max(0, (pStart - workStart) / 60000);
+        if (p.end) workStart = cleanDate(p.end);
+        else return Math.round(total);
+    }
+    total += Math.max(0, (end - workStart) / 60000);
+    return Math.round(total);
+}
+
+function calculatePauseMinutes(day) {
+    if (!day) return 0;
+    let total = 0;
+    for (const p of day.pauses) {
+        if (!p.start) continue;
+        const pStart = cleanDate(p.start);
+        const end = p.end ? cleanDate(p.end) : roundEntryTime(new Date());
+        total += Math.max(0, (end - pStart) / 60000);
+    }
+    return Math.round(total);
+}
+
+function calculateOvertime(day) {
+    if (!day) return 0;
+    const worked = calculateWorkedMinutes(day);
+    if (isWeekend(cleanDate(day.entry))) return worked;
+    return Math.max(0, worked - getNormalMinutes());
+}
+
+/* MODIFICA MANUALE */
+function updateLiveTimeManual(type, index, timeVal) {
+    if (!currentDay || !timeVal) return;
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    
+    let baseIso = type === "entry" ? currentDay.entry : currentDay.pauses[index][type === "pauseStart" ? "start" : "end"];
+    let rawDate = cleanDate(baseIso);
+    rawDate.setHours(hours, minutes, 0, 0);
+
+    let rounded = (type === "entry" || type === "pauseEnd") ? roundEntryTime(rawDate) : roundExitTime(rawDate);
+
+    if (type === "entry") currentDay.entry = rounded.toISOString();
+    else if (type === "pauseStart") currentDay.pauses[index].start = rounded.toISOString();
+    else if (type === "pauseEnd") currentDay.pauses[index].end = rounded.toISOString();
+
+    saveData();
+    updateToday();
+}
+
+function updateRecordTimeManual(id, type, index, timeVal, el) {
+    const record = records.find(r => r.id === id);
+    if (!record || !timeVal) return;
+
+    const [hours, minutes] = timeVal.split(":").map(Number);
+    let baseIso = type === "entry" ? record.entry : type === "exit" ? record.exit : record.pauses[index][type === "pauseStart" ? "start" : "end"];
+    let rawDate = cleanDate(baseIso);
+    rawDate.setHours(hours, minutes, 0, 0);
+
+    let rounded = (type === "entry" || type === "pauseEnd") ? roundEntryTime(rawDate) : roundExitTime(rawDate);
+
+    if (type === "entry") record.entry = rounded.toISOString();
+    else if (type === "exit") record.exit = rounded.toISOString();
+    else if (type === "pauseStart") record.pauses[index].start = rounded.toISOString();
+    else if (type === "pauseEnd") record.pauses[index].end = rounded.toISOString();
+
+    const tempDay = { entry: record.entry, exit: record.exit, pauses: record.pauses, paused: false, isClosed: true };
+    record.workedMinutes = calculateWorkedMinutes(tempDay);
+    record.pauseMinutes = calculatePauseMinutes(tempDay);
+    record.overtimeMinutes = calculateOvertime(tempDay);
+
+    const entryDate = cleanDate(record.entry);
+    record.date = getDateISO(entryDate);
+    record.dayName = entryDate.toLocaleDateString("it-IT", { weekday: "long" });
+
+    saveData();
+    
+    const itemCard = el.closest('.history-item');
+    if (itemCard) {
+        const otEl = itemCard.querySelector('.overtime, .negative');
+        if (otEl) {
+            otEl.textContent = formatSignedDuration(record.overtimeMinutes);
+            otEl.className = record.overtimeMinutes >= 0 ? "overtime" : "negative";
+        }
+    }
+    updateToday();
+}
+
+function renderLiveCorrection() {
+    const box = document.getElementById("liveCorrection");
+    const times = document.getElementById("liveTimes");
+    if (!currentDay) { box.style.display = "none"; return; }
+    box.style.display = "block";
+
+    let html = timeControlManual("Entrata", cleanDate(currentDay.entry), "entry", null);
+    currentDay.pauses.forEach((p, idx) => {
+        html += timeControlManual("Pausa " + (idx + 1) + " inizio", cleanDate(p.start), "pauseStart", idx);
+        if (p.end) html += timeControlManual("Pausa " + (idx + 1) + " fine", cleanDate(p.end), "pauseEnd", idx);
+    });
+    times.innerHTML = html;
+}
+
+function timeControlManual(label, date, type, index) {
+    const idx = index === null ? "null" : index;
+    const val = getTimeInputValue(date);
+    return `
+        <div class="time-row">
+            <span class="time-label">${label}:</span>
+            <input type="time" class="time-input-manual" value="${val}" onchange="updateLiveTimeManual('${type}', ${idx}, this.value)">
+        </div>
+    `;
+}
+
+function groupRecordsByMonth(recordList) {
+    const groups = {};
+    recordList.forEach(r => {
+        const d = cleanDate(r.entry);
+        const monthKey = getMonthKey(d);
+        const monthName = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+        
+        if (!groups[monthKey]) {
+            groups[monthKey] = { name: monthName, records: [], totalOvertime: 0 };
+        }
+        groups[monthKey].records.push(r);
+        groups[monthKey].totalOvertime += r.overtimeMinutes;
+    });
+    return groups;
+}
+
+function renderHistory() {
+    const container = document.getElementById("history");
+    if (records.length === 0) {
+        container.innerHTML = `<div class="empty">Nessuna giornata registrata.</div>`;
+        return;
+    }
+
+    const groups = groupRecordsByMonth(records);
+    let html = "";
+
+    for (const key in groups) {
+        const group = groups[key];
+        const overtimeClass = group.totalOvertime >= 0 ? "overtime" : "negative";
+
+        html += `
+            <div class="month-group">
+                <div class="month-header">
+                    <span style="text-transform: capitalize;">📅 ${group.name}</span>
+                    <span class="${overtimeClass}">Tot: ${formatSignedDuration(group.totalOvertime)}</span>
+                </div>
+                ${group.records.map(r => {
+                    const otClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
+                    return `
+                        <div class="history-item">
+                            <div class="history-top">
+                                <div class="history-row-main">
+                                    <div>
+                                        <span class="history-date">${r.dayName}</span>
+                                        <span class="small">(${formatItalianDate(r.date)})</span>
+                                    </div>
+                                    <strong class="${otClass}" style="font-size:14px;">${formatSignedDuration(r.overtimeMinutes)}</strong>
+                                </div>
+                                <div class="history-details">
+                                    <div><div class="small">Entrata</div><strong>${formatTime(cleanDate(r.entry))}</strong></div>
+                                    <div><div class="small">Uscita</div><strong>${formatTime(cleanDate(r.exit))}</strong></div>
+                                    <div><div class="small">Lavorate</div><strong>${formatDuration(r.workedMinutes)}</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+function renderManageHistory() {
+    const container = document.getElementById("manageHistory");
+    if (records.length === 0) {
+        container.innerHTML = `<div class="empty">Nessuna giornata presente.</div>`;
+        return;
+    }
+
+    const groups = groupRecordsByMonth(records);
+    let html = "";
+
+    for (const key in groups) {
+        const group = groups[key];
+
+        html += `
+            <div class="month-group">
+                <div class="month-header">
+                    <span style="text-transform: capitalize;">📅 ${group.name}</span>
+                </div>
+                ${group.records.map(r => {
+                    const otClass = r.overtimeMinutes >= 0 ? "overtime" : "negative";
+                    let pausesHTML = "";
+                    r.pauses.forEach((p, idx) => {
+                        pausesHTML += `
+                            <div class="pause-item">
+                                <span class="small">Pausa ${idx + 1} inizio:</span>${historyInputManual(r, "pauseStart", idx, p.start)}
+                                <span class="small">fine:</span>
+                                ${p.end ? historyInputManual(r, "pauseEnd", idx, p.end) : "<strong>in corso</strong>"}
+                            </div>
+                        `;
+                    });
+
+                    return `
+                        <div class="history-item">
+                            <div class="history-top">
+                                <div class="history-row-main" style="margin-bottom:8px;">
+                                    <div>
+                                        <span class="history-date">${r.dayName}</span>
+                                        <span class="small">(${formatItalianDate(r.date)})</span>
+                                    </div>
+                                    <button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button>
+                                </div>
+                                <div class="history-details-edit">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span class="small">Entrata:</span>
+                                        ${historyInputManual(r, "entry", null, r.entry)}
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span class="small">Uscita:</span>
+                                        ${historyInputManual(r, "exit", null, r.exit)}
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--border); padding-top:4px;">
+                                        <span class="small">Straordinario:</span>
+                                        <strong class="${otClass}">${formatSignedDuration(r.overtimeMinutes)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            ${r.pauses.length ? `<div class="pause-list">${pausesHTML}</div>` : ""}
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+function historyInputManual(record, type, index, iso) {
+    const date = cleanDate(iso);
+    const idx = index === null ? "null" : index;
+    const val = getTimeInputValue(date);
+    return `<input type="time" class="time-input-manual" value="${val}" onchange="updateRecordTimeManual(${record.id}, '${type}', ${idx}, this.value, this)">`;
+}
+
+function openManageView() {
+    renderManageHistory();
+    document.getElementById("manageView").style.display = "block";
+    window.scrollTo(0, 0);
+}
+
+function closeManageView() {
+    document.getElementById("manageView").style.display = "none";
+    renderHistory();
+    window.scrollTo(0, 0);
+}
+
+function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
+
+/* ESPORTAZIONE CSV CON SCELTA MESE */
+function openExportModal() {
+    if (records.length === 0) return alert("Non ci sono dati da esportare.");
+    
+    const groups = groupRecordsByMonth(records);
+    const select = document.getElementById("exportMonthSelect");
+    select.innerHTML = "";
+
+    for (const key in groups) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = groups[key].name.charAt(0).toUpperCase() + groups[key].name.slice(1);
+        select.appendChild(option);
+    }
+
+    document.getElementById("exportModal").style.display = "flex";
+}
+
+function closeExportModal() {
+    document.getElementById("exportModal").style.display = "none";
+}
+
 function confirmExportCSV() {
     const selectedKey = document.getElementById("exportMonthSelect").value;
     if (!selectedKey) return;
@@ -5,73 +922,117 @@ function confirmExportCSV() {
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
-    const escapeCsv = (val) => {
-        if (val === null || val === undefined) return '""';
-        const str = String(val);
-        if (str.includes(";") || str.includes('"') || str.includes("\n")) {
-            return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-    };
-
-    let csv = "Data;Giorno;Entrata;Inizio Pausa;Fine Pausa;Uscita;Ore Lavorate;Straordinario;Straordinario Arrotondato\n";
-
-    let totalRawMinutes = 0;
-    let totalRawOvertimeMinutes = 0;
-    let totalRoundedOvertimeMinutes = 0;
-
+    let csv = "Data;Giorno;Entrata;Uscita;Pausa Totale (min);Ore Lavorate;Straordinario\n";
     filteredRecords.forEach(r => {
-        let pauseStarts = [];
-        let pauseEnds = [];
-
-        if (r.pauses && r.pauses.length > 0) {
-            r.pauses.forEach(p => {
-                if (p.start) pauseStarts.push(formatTimeExact(p.start));
-                if (p.end) pauseEnds.push(formatTimeExact(p.end));
-            });
-        }
-
-        const pStartStr = pauseStarts.join(" | ") || "-";
-        const pEndStr = pauseEnds.join(" | ") || "-";
-
-        const rawWorked = calculateRawWorkedMinutes(r);
-        const rawOvertime = calculateRawOvertime(r);
-        const roundedOvertime = calculateOvertime(r);
-
-        totalRawMinutes += rawWorked;
-        totalRawOvertimeMinutes += rawOvertime;
-        totalRoundedOvertimeMinutes += roundedOvertime;
-
-        const row = [
-            formatItalianDate(r.date),
-            r.dayName,
-            formatTimeExact(r.entryExact || r.entry),
-            pStartStr,
-            pEndStr,
-            formatTimeExact(r.exitExact || r.exit),
-            formatDuration(rawWorked),
-            formatSignedDuration(rawOvertime),
-            formatSignedDuration(roundedOvertime)
-        ].map(escapeCsv).join(";");
-
-        csv += row + "\n";
+        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${r.pauseMinutes};${formatDuration(r.workedMinutes)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
 
-    csv += "\n";
-    csv += `;;;;;Totale Mese:;${escapeCsv(formatDuration(totalRawMinutes))};${escapeCsv(formatSignedDuration(totalRawOvertimeMinutes))};${escapeCsv(formatSignedDuration(totalRoundedOvertimeMinutes))}\n`;
-
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    
-    a.href = url;
-    a.download = `ore_lavoro_${selectedKey}.csv`;
-    
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = `ore_straordinarie_${selectedKey}.csv`;
     a.click();
-    document.body.removeChild(a);
-
-    URL.revokeObjectURL(url);
 
     closeExportModal();
 }
+
+function deleteRecord(id) {
+    if (!confirm("Eliminare questa giornata?")) return;
+    records = records.filter(r => r.id !== id);
+    saveData();
+    renderHistory();
+    renderManageHistory();
+    updateUI();
+}
+
+function clearHistory() {
+    if (!confirm("Cancellare TUTTO lo storico?")) return;
+    records = [];
+    saveData();
+    renderHistory();
+    renderManageHistory();
+    updateUI();
+}
+
+function getMonthlyOvertime() {
+    const currentMonthKey = getMonthKey(new Date());
+    return records
+        .filter(r => getMonthKey(cleanDate(r.entry)) === currentMonthKey)
+        .reduce((sum, r) => sum + r.overtimeMinutes, 0);
+}
+
+function updateToday() {
+    let worked = 0, pause = 0, overtime = 0;
+    if (currentDay) {
+        worked = calculateWorkedMinutes(currentDay);
+        pause = calculatePauseMinutes(currentDay);
+        overtime = calculateOvertime(currentDay);
+    } else {
+        const r = records.find(r => r.date === getDateISO(new Date()));
+        if (r) { worked = r.workedMinutes; pause = r.pauseMinutes; overtime = r.overtimeMinutes; }
+    }
+    
+    const now = new Date();
+    const monthName = now.toLocaleDateString("it-IT", { month: "short" });
+    document.getElementById("monthLabel").textContent = "Straordinario " + monthName;
+
+    document.getElementById("todayWorked").textContent = formatDuration(worked);
+    document.getElementById("todayPause").textContent = formatDuration(pause);
+    document.getElementById("todayOvertime").textContent = formatSignedDuration(overtime);
+    document.getElementById("monthOvertime").textContent = formatSignedDuration(getMonthlyOvertime());
+}
+
+function updateStatus() {
+    const s = document.getElementById("status");
+    const e = document.getElementById("entryBtn"), p = document.getElementById("pauseBtn"), r = document.getElementById("resumeBtn"), x = document.getElementById("exitBtn");
+    const fe = document.getElementById("forgotEntryBtn"), fx = document.getElementById("forgotExitBtn");
+
+    if (isTodayRecorded() && !currentDay) {
+        s.innerHTML = "🔴 Giornata già registrata per oggi";
+        s.className = "status off";
+        e.disabled = true; p.disabled = true; r.disabled = true; x.disabled = true;
+        fe.disabled = true; fx.disabled = true;
+        return;
+    }
+
+    if (!currentDay) {
+        s.innerHTML = "⚪ Non sei al lavoro"; s.className = "status off";
+        e.disabled = false; p.disabled = true; r.disabled = true; x.disabled = true;
+        fe.disabled = false; fx.disabled = true;
+        return;
+    }
+    if (currentDay.paused) {
+        const last = currentDay.pauses[currentDay.pauses.length - 1];
+        s.innerHTML = "🟠 In pausa dalle <strong>" + formatTime(cleanDate(last.start)) + "</strong>";
+        s.className = "status pause";
+        e.disabled = true; p.disabled = true; r.disabled = false; x.disabled = true;
+        fe.disabled = true; fx.disabled = true;
+        return;
+    }
+    s.innerHTML = "🟢 Al lavoro dalle <strong>" + formatTime(cleanDate(currentDay.entry)) + "</strong>";
+    s.className = "status work";
+    e.disabled = true; p.disabled = false; r.disabled = true; x.disabled = false;
+    fe.disabled = true; fx.disabled = false;
+}
+
+function updateUI() { updateStatus(); updateToday(); renderLiveCorrection(); }
+function updateClock() {
+    const now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleTimeString("it-IT");
+    document.getElementById("date").textContent = now.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
+    updateToday();
+}
+
+setInterval(updateClock, 1000);
+function toggleTheme() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+}
+if (localStorage.getItem("darkMode") === "true") document.body.classList.add("dark");
+
+renderHistory();
+updateUI();
+updateClock();
+</script>
+</body>
+</html>
