@@ -435,8 +435,8 @@ let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
-/* REGOLA DI ARROTONDAMENTO AL QUARTO D'ORA (15 MIN) */
-function roundToQuarterHour(d) {
+/* REGOLA ARROTONDAMENTO ENTRATA: Tolleranza 5 min per difetto, poi scatta il quarto successivo */
+function roundEntry(d) {
     if (!d) return new Date();
     const date = new Date(d);
     if (isNaN(date.getTime())) return new Date();
@@ -458,8 +458,30 @@ function roundToQuarterHour(d) {
     return date;
 }
 
+/* REGOLA ARROTONDAMENTO USCITA: Richiede blocco da 15 min interamente completato */
+function roundExit(d) {
+    if (!d) return new Date();
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return new Date();
+    const minutes = date.getMinutes();
+    date.setSeconds(0, 0);
+
+    if (minutes < 15) {
+        date.setMinutes(0);
+    } else if (minutes < 30) {
+        date.setMinutes(15);
+    } else if (minutes < 45) {
+        date.setMinutes(30);
+    } else {
+        date.setMinutes(45);
+    }
+    return date;
+}
+
 function cleanDate(d) {
-    return roundToQuarterHour(d);
+    if (!d) return new Date();
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? new Date() : date;
 }
 
 function pad(n) { return String(n).padStart(2, "0"); }
@@ -517,7 +539,7 @@ function registerEntry() {
     const now = new Date();
     currentDay = { 
         entryExact: now.toISOString(),
-        entry: roundToQuarterHour(now).toISOString(), 
+        entry: roundEntry(now).toISOString(), 
         exit: null, 
         exitExact: null,
         paused: false, 
@@ -549,7 +571,7 @@ function registerExit() {
     
     const now = new Date();
     currentDay.exitExact = now.toISOString();
-    currentDay.exit = roundToQuarterHour(now).toISOString();
+    currentDay.exit = roundExit(now).toISOString();
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
@@ -582,7 +604,7 @@ function registerExit() {
 function openForgotModal(type) {
     forgotTypeAction = type;
     const timeInput = document.getElementById("forgotTimeInput");
-    const now = cleanDate(new Date());
+    const now = new Date();
     timeInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
     if (type === "entry") {
@@ -610,9 +632,9 @@ function confirmForgotTime() {
     const [hours, minutes] = timeVal.split(":").map(Number);
     const targetDate = new Date();
     targetDate.setHours(hours, minutes, 0, 0);
-    const roundedDate = roundToQuarterHour(targetDate);
 
     if (forgotTypeAction === "entry") {
+        const roundedDate = roundEntry(targetDate);
         currentDay = { 
             entryExact: targetDate.toISOString(), 
             entry: roundedDate.toISOString(), 
@@ -625,6 +647,7 @@ function confirmForgotTime() {
         saveData();
         updateUI();
     } else if (forgotTypeAction === "exit") {
+        const roundedDate = roundExit(targetDate);
         if (roundedDate <= new Date(currentDay.entry)) {
             return alert("L'ora di uscita non può essere precedente o uguale all'ora di entrata!");
         }
@@ -663,7 +686,7 @@ function confirmForgotTime() {
 function calculateWorkedMinutes(day) {
     if (!day || !day.entry) return 0;
     const start = cleanDate(day.entry);
-    const end = (day.isClosed || day.exit) ? cleanDate(day.exit) : cleanDate(new Date());
+    const end = (day.isClosed || day.exit) ? cleanDate(day.exit) : roundExit(new Date());
     let total = 0, workStart = start;
 
     for (const p of (day.pauses || [])) {
@@ -746,7 +769,7 @@ function updateLiveTimeManual(type, index, timeVal) {
 
     if (type === "entry") {
         currentDay.entryExact = d.toISOString();
-        currentDay.entry = roundToQuarterHour(d).toISOString();
+        currentDay.entry = roundEntry(d).toISOString();
     } else if (type === "pauseStart") {
         currentDay.pauses[index].start = d.toISOString();
     } else if (type === "pauseEnd") {
@@ -768,10 +791,10 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
 
     if (type === "entry") {
         record.entryExact = d.toISOString();
-        record.entry = roundToQuarterHour(d).toISOString();
+        record.entry = roundEntry(d).toISOString();
     } else if (type === "exit") {
         record.exitExact = d.toISOString();
-        record.exit = roundToQuarterHour(d).toISOString();
+        record.exit = roundExit(d).toISOString();
     } else if (type === "pauseStart") {
         record.pauses[index].start = d.toISOString();
     } else if (type === "pauseEnd") {
@@ -976,7 +999,7 @@ function closeManageView() {
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
-/* ESPORTAZIONE CSV CON ORE REALI, ARROTONDATE SI STRAORDINARIO ARROTONDATO */
+/* ESPORTAZIONE CSV CON ORE REALI E ARROTONDATE */
 function openExportModal() {
     if (records.length === 0) return alert("Non ci sono dati da esportare.");
     
