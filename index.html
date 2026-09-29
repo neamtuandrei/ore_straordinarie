@@ -431,7 +431,7 @@ select {
 </div>
 
 <script>
-let rawRecords = JSON.parse(localStorage.getItem("workRecords") || "[]");
+let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
@@ -461,25 +461,6 @@ function roundToQuarterHour(d) {
 function cleanDate(d) {
     return roundToQuarterHour(d);
 }
-
-/* REPARARE SI SANITIZARE AUTOMATA A DATELOR VECHI DIN MEMORIE */
-function sanitizeRecord(r) {
-    if (!r) return r;
-    
-    // Daca lipsesc campurile de timp exact, le atribuim ora din entry/exit
-    if (!r.entryExact) r.entryExact = r.entry;
-    if (!r.exitExact) r.exitExact = r.exit;
-
-    // Recalculam minutele pentru a elimina valorile eronate de mii de ore
-    r.workedMinutes = calculateWorkedMinutes(r);
-    r.rawWorkedMinutes = calculateRawWorkedMinutes(r);
-    r.pauseMinutes = calculatePauseMinutes(r);
-    r.overtimeMinutes = calculateOvertime(r);
-
-    return r;
-}
-
-let records = rawRecords.map(sanitizeRecord);
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
@@ -572,7 +553,7 @@ function registerExit() {
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
-    const newRecord = sanitizeRecord({
+    const rec = {
         id: Date.now(),
         date: getDateISO(entryDate),
         dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
@@ -582,9 +563,14 @@ function registerExit() {
         exit: currentDay.exit,
         pauses: currentDay.pauses,
         isClosed: true
-    });
+    };
 
-    records.unshift(newRecord);
+    rec.workedMinutes = calculateWorkedMinutes(rec);
+    rec.rawWorkedMinutes = calculateRawWorkedMinutes(rec);
+    rec.pauseMinutes = calculatePauseMinutes(rec);
+    rec.overtimeMinutes = calculateOvertime(rec);
+
+    records.unshift(rec);
     currentDay = null;
     saveData();
     renderHistory();
@@ -646,7 +632,7 @@ function confirmForgotTime() {
         currentDay.isClosed = true;
 
         const entryDate = cleanDate(currentDay.entry);
-        const newRecord = sanitizeRecord({
+        const rec = {
             id: Date.now(),
             date: getDateISO(entryDate),
             dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
@@ -656,9 +642,14 @@ function confirmForgotTime() {
             exit: currentDay.exit,
             pauses: currentDay.pauses,
             isClosed: true
-        });
+        };
 
-        records.unshift(newRecord);
+        rec.workedMinutes = calculateWorkedMinutes(rec);
+        rec.rawWorkedMinutes = calculateRawWorkedMinutes(rec);
+        rec.pauseMinutes = calculatePauseMinutes(rec);
+        rec.overtimeMinutes = calculateOvertime(rec);
+
+        records.unshift(rec);
         currentDay = null;
         saveData();
         renderHistory();
@@ -683,23 +674,27 @@ function calculateWorkedMinutes(day) {
     return Math.round(total);
 }
 
+/* CALCUL REPARAT PENTRU ORELE REALE (PREVINE ERORILE PE DATI VECHI) */
 function calculateRawWorkedMinutes(day) {
     if (!day) return 0;
-    const entryIso = day.entryExact || day.entry;
-    const exitIso = day.exitExact || day.exit;
+    
+    // Daca nu exista ora exacta salvata, foloseşte ora normala (previne eroarea din 1970)
+    const entryIso = day.entryExact && day.entryExact !== "undefined" ? day.entryExact : day.entry;
+    const exitIso = day.exitExact && day.exitExact !== "undefined" ? day.exitExact : day.exit;
+    
     if (!entryIso) return 0;
 
     const start = new Date(entryIso);
     const end = (day.isClosed || exitIso) ? new Date(exitIso) : new Date();
     
-    // Protect against invalid dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || Math.abs(end - start) > 86400000) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return calculateWorkedMinutes(day);
     }
 
     let total = 0, workStart = start;
 
     for (const p of (day.pauses || [])) {
+        if (!p.start) continue;
         const pStart = new Date(p.start);
         if (!isNaN(pStart.getTime())) {
             total += Math.max(0, (pStart - workStart) / 60000);
@@ -779,7 +774,10 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
         record.pauses[index].end = d.toISOString();
     }
 
-    sanitizeRecord(record);
+    record.workedMinutes = calculateWorkedMinutes(record);
+    record.rawWorkedMinutes = calculateRawWorkedMinutes(record);
+    record.pauseMinutes = calculatePauseMinutes(record);
+    record.overtimeMinutes = calculateOvertime(record);
 
     const entryDate = cleanDate(record.entry);
     record.date = getDateISO(entryDate);
