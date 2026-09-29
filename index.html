@@ -569,6 +569,7 @@ function registerExit() {
     rec.rawWorkedMinutes = calculateRawWorkedMinutes(rec);
     rec.pauseMinutes = calculatePauseMinutes(rec);
     rec.overtimeMinutes = calculateOvertime(rec);
+    rec.rawOvertimeMinutes = calculateRawOvertime(rec);
 
     records.unshift(rec);
     currentDay = null;
@@ -648,6 +649,7 @@ function confirmForgotTime() {
         rec.rawWorkedMinutes = calculateRawWorkedMinutes(rec);
         rec.pauseMinutes = calculatePauseMinutes(rec);
         rec.overtimeMinutes = calculateOvertime(rec);
+        rec.rawOvertimeMinutes = calculateRawOvertime(rec);
 
         records.unshift(rec);
         currentDay = null;
@@ -674,29 +676,20 @@ function calculateWorkedMinutes(day) {
     return Math.round(total);
 }
 
-/* CALCULUL CORECT INDIVIDUAL PER ZI PENTRU ORELE REALE (EXACTE) */
 function calculateRawWorkedMinutes(day) {
     if (!day) return 0;
-    
-    // Luam ora de intrare si de iesire STRICT ale zilei respective
     const entryIso = day.entryExact || day.entry;
     const exitIso = day.exitExact || day.exit;
-    
     if (!entryIso || !exitIso) return calculateWorkedMinutes(day);
 
     const start = new Date(entryIso);
     const end = new Date(exitIso);
     
-    // Verificare sa nu existe date invalide sau diferente mari
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return calculateWorkedMinutes(day);
     }
 
-    // Calculam diferenta totala in minute pentru ZIUA RESPECTIVA
     let diffMs = end - start;
-    let totalMinutes = Math.max(0, diffMs / 60000);
-
-    // Scadem pauzele zilei respectivi
     let pauseMs = 0;
     for (const p of (day.pauses || [])) {
         if (p.start && p.end) {
@@ -709,11 +702,7 @@ function calculateRawWorkedMinutes(day) {
     }
 
     let netMinutes = Math.max(0, (diffMs - pauseMs) / 60000);
-    
-    // Daca diferenta este anormala (ex. mai mare de 24 ore), revenim la orele calculate standard
-    if (netMinutes > 24 * 60) {
-        return calculateWorkedMinutes(day);
-    }
+    if (netMinutes > 24 * 60) return calculateWorkedMinutes(day);
 
     return Math.round(netMinutes);
 }
@@ -735,6 +724,13 @@ function calculatePauseMinutes(day) {
 function calculateOvertime(day) {
     if (!day) return 0;
     const worked = calculateWorkedMinutes(day);
+    if (isWeekend(cleanDate(day.entry))) return worked;
+    return Math.max(0, worked - getNormalMinutes());
+}
+
+function calculateRawOvertime(day) {
+    if (!day) return 0;
+    const worked = calculateRawWorkedMinutes(day);
     if (isWeekend(cleanDate(day.entry))) return worked;
     return Math.max(0, worked - getNormalMinutes());
 }
@@ -786,6 +782,7 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
     record.rawWorkedMinutes = calculateRawWorkedMinutes(record);
     record.pauseMinutes = calculatePauseMinutes(record);
     record.overtimeMinutes = calculateOvertime(record);
+    record.rawOvertimeMinutes = calculateRawOvertime(record);
 
     const entryDate = cleanDate(record.entry);
     record.date = getDateISO(entryDate);
@@ -979,7 +976,7 @@ function closeManageView() {
 
 function formatItalianDate(d) { const p = d.split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
-/* ESPORTAZIONE CSV STRICT SUL MESE SELEZIONATO */
+/* ESPORTAZIONE CSV CON ORE REALI, ARROTONDATE SI STRAORDINARIO ARROTONDATO */
 function openExportModal() {
     if (records.length === 0) return alert("Non ci sono dati da esportare.");
     
@@ -1008,11 +1005,12 @@ function confirmExportCSV() {
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
-    let csv = "Data;Giorno;Entrata Arrotondata;Uscita Arrotondata;Inizio Pausa;Fine Pausa;Durata Pausa (min);Ore Lavorate (Reali);Ore Lavorate (Arrotondate);Straordinario\n";
+    let csv = "Data;Giorno;Entrata Arrotondata;Uscita Arrotondata;Inizio Pausa;Fine Pausa;Durata Pausa (min);Ore Lavorate (Reali);Ore Lavorate (Arrotondate);Straordinario Reale;Straordinario Arrotondato\n";
 
     let totalRawMinutes = 0;
     let totalRoundedMinutes = 0;
-    let totalOvertimeMinutes = 0;
+    let totalRawOvertimeMinutes = 0;
+    let totalRoundedOvertimeMinutes = 0;
 
     filteredRecords.forEach(r => {
         let pauseStarts = [];
@@ -1030,17 +1028,20 @@ function confirmExportCSV() {
 
         const rawWorked = calculateRawWorkedMinutes(r);
         const roundedWorked = calculateWorkedMinutes(r);
+        const rawOvertime = calculateRawOvertime(r);
+        const roundedOvertime = calculateOvertime(r);
 
         totalRawMinutes += rawWorked;
         totalRoundedMinutes += roundedWorked;
-        totalOvertimeMinutes += r.overtimeMinutes;
+        totalRawOvertimeMinutes += rawOvertime;
+        totalRoundedOvertimeMinutes += roundedOvertime;
 
-        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${pStartStr};${pEndStr};${r.pauseMinutes};${formatDuration(rawWorked)};${formatDuration(roundedWorked)};${formatSignedDuration(r.overtimeMinutes)}\n`;
+        csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${pStartStr};${pEndStr};${r.pauseMinutes};${formatDuration(rawWorked)};${formatDuration(roundedWorked)};${formatSignedDuration(rawOvertime)};${formatSignedDuration(roundedOvertime)}\n`;
     });
 
     csv += `\n`;
-    csv += `;;;;;;Riepilogo Mese:;Totale Ore Reali;Totale Ore Arrotondate;Totale Straordinario\n`;
-    csv += `;;;;;;;${formatDuration(totalRawMinutes)};${formatDuration(totalRoundedMinutes)};${formatSignedDuration(totalOvertimeMinutes)}\n`;
+    csv += `;;;;;;Riepilogo Mese:;Totale Ore Reali;Totale Ore Arrotondate;Totale Straordinario Reale;Totale Straordinario Arrotondato\n`;
+    csv += `;;;;;;;${formatDuration(totalRawMinutes)};${formatDuration(totalRoundedMinutes)};${formatSignedDuration(totalRawOvertimeMinutes)};${formatSignedDuration(totalRoundedOvertimeMinutes)}\n`;
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
