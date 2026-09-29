@@ -431,17 +431,11 @@ select {
 </div>
 
 <script>
-let records = JSON.parse(localStorage.getItem("workRecords") || "[]");
+let rawRecords = JSON.parse(localStorage.getItem("workRecords") || "[]");
 let currentDay = JSON.parse(localStorage.getItem("currentDay") || "null");
 let forgotTypeAction = null;
 
-/* REGOLA DI ARROTONDAMENTO AL QUARTO D'ORA (15 MIN)
-   00 - 05 min -> :00
-   06 - 20 min -> :15
-   21 - 35 min -> :30
-   36 - 50 min -> :45
-   51 - 59 min -> +1h :00
-*/
+/* REGOLA DI ARROTONDAMENTO AL QUARTO D'ORA (15 MIN) */
 function roundToQuarterHour(d) {
     if (!d) return new Date();
     const date = new Date(d);
@@ -467,6 +461,25 @@ function roundToQuarterHour(d) {
 function cleanDate(d) {
     return roundToQuarterHour(d);
 }
+
+/* REPARARE SI SANITIZARE AUTOMATA A DATELOR VECHI DIN MEMORIE */
+function sanitizeRecord(r) {
+    if (!r) return r;
+    
+    // Daca lipsesc campurile de timp exact, le atribuim ora din entry/exit
+    if (!r.entryExact) r.entryExact = r.entry;
+    if (!r.exitExact) r.exitExact = r.exit;
+
+    // Recalculam minutele pentru a elimina valorile eronate de mii de ore
+    r.workedMinutes = calculateWorkedMinutes(r);
+    r.rawWorkedMinutes = calculateRawWorkedMinutes(r);
+    r.pauseMinutes = calculatePauseMinutes(r);
+    r.overtimeMinutes = calculateOvertime(r);
+
+    return r;
+}
+
+let records = rawRecords.map(sanitizeRecord);
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function formatTime(d) { return cleanDate(d).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); }
@@ -559,7 +572,7 @@ function registerExit() {
     currentDay.isClosed = true;
 
     const entryDate = cleanDate(currentDay.entry);
-    records.unshift({
+    const newRecord = sanitizeRecord({
         id: Date.now(),
         date: getDateISO(entryDate),
         dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
@@ -567,13 +580,11 @@ function registerExit() {
         entry: currentDay.entry,
         exitExact: currentDay.exitExact || currentDay.exit,
         exit: currentDay.exit,
-        workedMinutes: calculateWorkedMinutes(currentDay),
-        rawWorkedMinutes: calculateRawWorkedMinutes(currentDay),
-        pauseMinutes: calculatePauseMinutes(currentDay),
-        overtimeMinutes: calculateOvertime(currentDay),
-        pauses: currentDay.pauses
+        pauses: currentDay.pauses,
+        isClosed: true
     });
 
+    records.unshift(newRecord);
     currentDay = null;
     saveData();
     renderHistory();
@@ -635,7 +646,7 @@ function confirmForgotTime() {
         currentDay.isClosed = true;
 
         const entryDate = cleanDate(currentDay.entry);
-        records.unshift({
+        const newRecord = sanitizeRecord({
             id: Date.now(),
             date: getDateISO(entryDate),
             dayName: entryDate.toLocaleDateString("it-IT", { weekday: "long" }),
@@ -643,13 +654,11 @@ function confirmForgotTime() {
             entry: currentDay.entry,
             exitExact: currentDay.exitExact || currentDay.exit,
             exit: currentDay.exit,
-            workedMinutes: calculateWorkedMinutes(currentDay),
-            rawWorkedMinutes: calculateRawWorkedMinutes(currentDay),
-            pauseMinutes: calculatePauseMinutes(currentDay),
-            overtimeMinutes: calculateOvertime(currentDay),
-            pauses: currentDay.pauses
+            pauses: currentDay.pauses,
+            isClosed: true
         });
 
+        records.unshift(newRecord);
         currentDay = null;
         saveData();
         renderHistory();
@@ -661,7 +670,7 @@ function confirmForgotTime() {
 function calculateWorkedMinutes(day) {
     if (!day || !day.entry) return 0;
     const start = cleanDate(day.entry);
-    const end = day.isClosed ? cleanDate(day.exit) : cleanDate(new Date());
+    const end = (day.isClosed || day.exit) ? cleanDate(day.exit) : cleanDate(new Date());
     let total = 0, workStart = start;
 
     for (const p of (day.pauses || [])) {
@@ -681,9 +690,12 @@ function calculateRawWorkedMinutes(day) {
     if (!entryIso) return 0;
 
     const start = new Date(entryIso);
-    const end = day.isClosed ? (exitIso ? new Date(exitIso) : new Date()) : new Date();
+    const end = (day.isClosed || exitIso) ? new Date(exitIso) : new Date();
     
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return calculateWorkedMinutes(day);
+    // Protect against invalid dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || Math.abs(end - start) > 86400000) {
+        return calculateWorkedMinutes(day);
+    }
 
     let total = 0, workStart = start;
 
@@ -747,7 +759,7 @@ function updateLiveTimeManual(type, index, timeVal) {
 }
 
 function updateRecordTimeManual(id, type, index, timeVal, el) {
-    const record = records.find(r => r.id === id);
+    let record = records.find(r => r.id === id);
     if (!record || !timeVal) return;
 
     const [hours, minutes] = timeVal.split(":").map(Number);
@@ -767,11 +779,7 @@ function updateRecordTimeManual(id, type, index, timeVal, el) {
         record.pauses[index].end = d.toISOString();
     }
 
-    const tempDay = { entryExact: record.entryExact, entry: record.entry, exitExact: record.exitExact, exit: record.exit, pauses: record.pauses, paused: false, isClosed: true };
-    record.workedMinutes = calculateWorkedMinutes(tempDay);
-    record.rawWorkedMinutes = calculateRawWorkedMinutes(tempDay);
-    record.pauseMinutes = calculatePauseMinutes(tempDay);
-    record.overtimeMinutes = calculateOvertime(tempDay);
+    sanitizeRecord(record);
 
     const entryDate = cleanDate(record.entry);
     record.date = getDateISO(entryDate);
@@ -991,7 +999,6 @@ function confirmExportCSV() {
     const selectedKey = document.getElementById("exportMonthSelect").value;
     if (!selectedKey) return;
 
-    // FILTRUL STRICT PE LUNA SELECTIONATA
     const filteredRecords = records.filter(r => getMonthKey(cleanDate(r.entry)) === selectedKey);
     if (filteredRecords.length === 0) return alert("Nessun dato per questo mese.");
 
@@ -1025,7 +1032,6 @@ function confirmExportCSV() {
         csv += `${formatItalianDate(r.date)};${r.dayName};${formatTime(cleanDate(r.entry))};${formatTime(cleanDate(r.exit))};${pStartStr};${pEndStr};${r.pauseMinutes};${formatDuration(rawWorked)};${formatDuration(roundedWorked)};${formatSignedDuration(r.overtimeMinutes)}\n`;
     });
 
-    // SUMAR FINALE NUMAI PE LUNA SELECTATĂ
     csv += `\n`;
     csv += `;;;;;;Riepilogo Mese:;Totale Ore Reali;Totale Ore Arrotondate;Totale Straordinario\n`;
     csv += `;;;;;;;${formatDuration(totalRawMinutes)};${formatDuration(totalRoundedMinutes)};${formatSignedDuration(totalOvertimeMinutes)}\n`;
@@ -1133,6 +1139,7 @@ function toggleTheme() {
 }
 if (localStorage.getItem("darkMode") === "true") document.body.classList.add("dark");
 
+saveData();
 renderHistory();
 updateUI();
 updateClock();
